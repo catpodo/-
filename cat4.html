@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>냥이 꽃 힐링</title>
+  <style>
+    html,body{height:100%;margin:0;background:#0b0f14;overflow:hidden}
+    canvas{display:block;width:100vw;height:100vh;touch-action:manipulation}
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d', { alpha:true });
+
+  // 픽셀 크기(작게)
+  const PX = 2;
+  const DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+  let W=0,H=0;
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    c.width = Math.floor(W*DPR);
+    c.height = Math.floor(H*DPR);
+    c.style.width = W+'px';
+    c.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.imageSmoothingEnabled = false;
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  const now = () => performance.now();
+  const pix = v => Math.round(v/PX)*PX;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx, ay-by);
+  const ri=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
+
+  // =========================
+  // 잔잔 배경 점
+  // =========================
+  const stars = Array.from({length: 110}, () => ({
+    x: Math.random()*W,
+    y: Math.random()*H,
+    v: 0.05 + Math.random()*0.10,
+    a: 0.03 + Math.random()*0.07,
+    s: Math.random()<0.88?PX:PX*2
+  }));
+
+  // =========================
+  // 엔티티
+  // =========================
+  const flowers = []; // {x,y,state:'wait'|'done', born, doneAt, hue}
+  const dust = [];    // {x,y,vx,vy,a,born,life,s}
+  const sparkle = []; // {x,y,vx,vy,a,born,life,c,s}
+
+  // =========================
+  // ✅ 음악 (iOS에서 확실히)
+  // =========================
+  let audioStarted=false, audioOn=true;
+  let AC=null, master=null;
+
+  async function startAmbient(){
+    if (audioStarted) return;
+    audioStarted = true;
+
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') await AC.resume();
+
+    master = AC.createGain();
+    master.gain.value = 0.15;
+    master.connect(AC.destination);
+
+    const filter = AC.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 280;
+    filter.Q.value = 0.6;
+
+    const padGain = AC.createGain();
+    padGain.gain.value = 0.22;
+
+    const lfo = AC.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.015;
+    const lfoGain = AC.createGain();
+    lfoGain.gain.value = 140;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+
+    const base = 110;
+    const o1 = AC.createOscillator();
+    o1.type = 'sine';
+    o1.frequency.value = base * 1.0;
+
+    const o2 = AC.createOscillator();
+    o2.type = 'triangle';
+    o2.frequency.value = base * 1.005;
+
+    const breath = AC.createOscillator();
+    breath.type = 'sine';
+    breath.frequency.value = 0.03;
+    const breathGain = AC.createGain();
+    breathGain.gain.value = 0.08;
+    breath.connect(breathGain);
+    breathGain.connect(padGain.gain);
+
+    // 공기감 노이즈
+    const noiseBuf = AC.createBuffer(1, AC.sampleRate*2, AC.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1)*0.12;
+    const noise = AC.createBufferSource();
+    noise.buffer = noiseBuf;
+    noise.loop = true;
+
+    const noiseFilter = AC.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 420;
+    noiseFilter.Q.value = 0.8;
+
+    const noiseGain = AC.createGain();
+    noiseGain.gain.value = 0.03;
+
+    o1.connect(filter); o2.connect(filter);
+    filter.connect(padGain); padGain.connect(master);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(master);
+
+    lfo.start(); breath.start(); o1.start(); o2.start(); noise.start();
+  }
+
+  function setAudio(on){
+    audioOn = on;
+    if (!audioStarted || !master) return;
+    master.gain.value = on ? 0.15 : 0.0;
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!audioStarted) return;
+    setAudio(!document.hidden);
+  });
+
+  // =========================
+  // 픽셀 스프라이트 드로잉
+  // - ' ' : 투명
+  // - 팔레트 문자: a,b,c,d,e,o
+  // =========================
+  const PAL = {
+    a: 'rgba(235,228,214,0.95)', // 밝은 베이지
+    b: 'rgba(223,215,200,0.95)', // 중간 베이지
+    c: 'rgba(206,197,182,0.95)', // 그림자
+    d: 'rgba(60,62,68,0.55)',    // 외곽/선
+    e: 'rgba(255,245,228,0.60)', // 하이라이트
+    o: 'rgba(40,40,45,0.75)',    // 눈(아주 작게)
+    p: 'rgba(255,175,190,0.55)', // 코(아주 약)
+  };
+
+  function drawSprite(sprite, x, y, scale, flipX=false){
+    // sprite: array of strings
+    // each char -> palette
+    const h = sprite.length;
+    const w = sprite[0].length;
+
+    ctx.save();
+    ctx.translate(pix(x), pix(y));
+    if (flipX){
+      ctx.translate(w*scale*PX, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.imageSmoothingEnabled = false;
+
+    for (let j=0;j<h;j++){
+      const row = sprite[j];
+      for (let i=0;i<w;i++){
+        const ch = row[i];
+        if (ch === ' ') continue;
+        const col = PAL[ch];
+        if (!col) continue;
+        ctx.fillStyle = col;
+        ctx.fillRect(i*scale*PX, j*scale*PX, scale*PX, scale*PX);
+      }
+    }
+    ctx.restore();
+  }
+
+  // =========================
+  // ✅ 고양이(코드 픽셀) — 최대한 레퍼런스 결로
+  // - 크기/실루엣/톤: 미니멀 베이지
+  // - idle / run1 / run2 / stare
+  // =========================
+  const CAT_IDLE = [
+"        dddddd        ",
+"      ddabbabdd       ",
+"     dbaaaabbbad      ",
+"    dbaaaaeabbad      ",
+"   dbaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"   dbaaabbbbabbad     ",
+"    dbaabbbbbbadd     ",
+"     ddbbbbbbbdd      ",
+"      ddbbbbddd       ",
+"       ddbbdd         ",
+"    dd  dd  dd        ",
+"   dbd  dbd  dbd      ",
+"   dbd  dbd  dbd      ",
+"    dd   dd   dd      "
+  ];
+
+  // 달리기 프레임 1
+  const CAT_RUN1 = [
+"        dddddd        ",
+"      ddabbabdd       ",
+"     dbaaaabbbad      ",
+"    dbaaaaeabbad      ",
+"   dbaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"   dbaaabbbbabbad     ",
+"    dbaabbbbbbadd     ",
+"     ddbbbbbbbdd      ",
+"    dd ddbbbbddd      ",
+"   dbd  ddbbdd        ",
+"  dbd    dd           ",
+"   dd   dd  dd        ",
+"      dbd  dbd        ",
+"      dd    dd        ",
+"         dd           ",
+"                      "
+  ];
+
+  // 달리기 프레임 2
+  const CAT_RUN2 = [
+"        dddddd        ",
+"      ddabbabdd       ",
+"     dbaaaabbbad      ",
+"    dbaaaaeabbad      ",
+"   dbaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"   dbaaabbbbabbad     ",
+"    dbaabbbbbbadd     ",
+"     ddbbbbbbbdd      ",
+"      ddbbbbddd       ",
+"    dd  ddbbdd        ",
+"   dbd   dd           ",
+"   dd  dd  dd         ",
+"     dbd  dbd         ",
+"     dd    dd         ",
+"        dd            ",
+"                      ",
+"                      "
+  ];
+
+  // 정지/응시(꽃 앞에서 멈춤 느낌: 실루엣 안정)
+  const CAT_STARE = [
+"        dddddd        ",
+"      ddabbabdd       ",
+"     dbaaaabbbad      ",
+"    dbaaaaeabbad      ",
+"   dbaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"  dbaaaabbbbabbad     ",
+"   dbaaabbbbabbad     ",
+"    dbaabbbbbbadd     ",
+"     ddbbbbbbbdd      ",
+"      ddbbbbddd       ",
+"       ddbbdd         ",
+"        dd            ",
+"     dd  dd  dd       ",
+"    dbd  dbd  dbd     ",
+"    dbd  dbd  dbd     ",
+"     dd   dd   dd     "
+  ];
+
+  // 눈/코는 “stare/idle일 때만” 아주 약하게 찍어주기(원하면 끌 수 있음)
+  function drawCatFaceDots(baseX, baseY, scale, flipX){
+    // 고양이 헤드 좌표에 아주 미세한 점
+    // (좌표는 스프라이트 기준)
+    const eyeY = baseY + 6*scale*PX;
+    const eyeX1 = baseX + 12*scale*PX;
+    const eyeX2 = baseX + 14*scale*PX;
+    const noseX = baseX + 13*scale*PX;
+    const noseY = baseY + 7*scale*PX;
+
+    ctx.save();
+    ctx.fillStyle = PAL.o;
+    if (!flipX){
+      ctx.fillRect(pix(eyeX1), pix(eyeY), scale*PX, scale*PX);
+      ctx.fillRect(pix(eyeX2), pix(eyeY), scale*PX, scale*PX);
+      ctx.fillStyle = PAL.p;
+      ctx.fillRect(pix(noseX), pix(noseY), scale*PX, scale*PX);
+    } else {
+      // flip 시 대칭 위치
+      const w = CAT_IDLE[0].length * scale * PX;
+      const fx1 = baseX + (w - (eyeX1-baseX) - scale*PX);
+      const fx2 = baseX + (w - (eyeX2-baseX) - scale*PX);
+      const fnx = baseX + (w - (noseX-baseX) - scale*PX);
+      ctx.fillStyle = PAL.o;
+      ctx.fillRect(pix(fx1), pix(eyeY), scale*PX, scale*PX);
+      ctx.fillRect(pix(fx2), pix(eyeY), scale*PX, scale*PX);
+      ctx.fillStyle = PAL.p;
+      ctx.fillRect(pix(fnx), pix(noseY), scale*PX, scale*PX);
+    }
+    ctx.restore();
+  }
+
+  // =========================
+  // 고양이 상태
+  // =========================
+  const cat = {
+    x: pix(W*0.5),
+    y: pix(H*0.62),
+    state: 'idle', // idle | run | stare
+    face: 1,
+    target: null,
+    speed: 2.6, // 이동 속도 (px/프레임 느낌)
+    scale: 1,   // 스프라이트 확대(현재 PX=2라 이 값 1이 딱 작음)
+  };
+
+  // =========================
+  // 꽃 & 파티클
+  // =========================
+  function drawFlower(f, t){
+    const x = pix(f.x), y = pix(f.y);
+    const age = t - f.born;
+    const pop = clamp(age/120, 0, 1);
+
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(x-6*PX,y-6*PX,12*PX,12*PX);
+    ctx.globalAlpha = 1;
+
+    // stem
+    ctx.fillStyle = 'rgba(120,220,160,0.9)';
+    ctx.fillRect(x, y+3*PX, PX, 5*PX);
+
+    // petals
+    const pet = `hsla(${f.hue},70%,78%,0.95)`;
+    const pet2= `hsla(${f.hue+10},70%,84%,0.95)`;
+    ctx.fillStyle = 'rgba(255,235,180,0.95)';
+    ctx.fillRect(x, y, PX, PX);
+    ctx.fillStyle = pet;  ctx.fillRect(x-PX, y, PX, PX); ctx.fillRect(x+PX, y, PX, PX);
+    ctx.fillStyle = pet2; ctx.fillRect(x, y-PX, PX, PX); ctx.fillRect(x, y+PX, PX, PX);
+
+    if (pop < 1){
+      ctx.globalAlpha = (1-pop)*0.22;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(x-2*PX,y-2*PX,4*PX,4*PX);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function spawnSparkle(x,y,hue){
+    const n = ri(6,10);
+    for(let i=0;i<n;i++){
+      sparkle.push({
+        x: pix(x), y: pix(y),
+        vx: (Math.random()*2-1)*(0.5+Math.random()*0.9),
+        vy: (Math.random()*2-1)*(0.5+Math.random()*0.9) - 0.25,
+        a: 0.7,
+        born: now(),
+        life: 420 + Math.random()*260,
+        c: (Math.random()<0.7) ? 'rgba(255,255,255,0.8)' : `hsla(${hue},80%,80%,0.9)`,
+        s: Math.random()<0.85?PX:PX*2
+      });
+    }
+  }
+
+  function spawnDust(){
+    dust.push({
+      x: pix(cat.x - cat.face*8*PX + ri(-1,1)*PX),
+      y: pix(cat.y + 26*PX + ri(-1,1)*PX),
+      vx: (-cat.face)*(0.4 + Math.random()*0.9),
+      vy: -0.2 - Math.random()*0.6,
+      a: 0.55,
+      born: now(),
+      life: 380 + Math.random()*260,
+      s: Math.random()<0.85?PX:PX*2
+    });
+  }
+
+  function addFlower(x,y){
+    const f = {
+      x: pix(x),
+      y: pix(Math.max(60, y)),
+      state: 'wait',
+      born: now(),
+      hue: 300 + (Math.random()*50 - 25)
+    };
+    flowers.push(f);
+    spawnSparkle(f.x, f.y, f.hue);
+    if (cat.state !== 'run' && !cat.target) startNext();
+  }
+
+  // ✅ 가까운 꽃부터 먹기
+  function findNearestFlower(){
+    let best=null, bestD=Infinity;
+    for (const f of flowers){
+      if (f.state !== 'wait') continue;
+      const d = Math.hypot(cat.x - f.x, cat.y - f.y);
+      if (d < bestD){ bestD=d; best=f; }
+    }
+    return best;
+  }
+
+  function startNext(){
+    const next = findNearestFlower();
+    if (!next){
+      cat.target = null;
+      cat.state = 'idle';
+      cat.face = 1;
+      return;
+    }
+    cat.target = next;
+    cat.state = 'run';
+    cat.face = (next.x >= cat.x) ? 1 : -1;
+  }
+
+  // =========================
+  // 렌더: 고양이 선택 프레임 + 달리기 바운스
+  // =========================
+  function drawCat(t){
+    const running = cat.state === 'run';
+    const frame = running ? (Math.floor(t/95) % 2) : 0;
+    const bounce = running ? Math.sin(t/85) * PX : 0;
+
+    const scale = cat.scale;
+    // 스프라이트가 큰 편이라 실제 위치는 스프라이트 상단 기준으로 배치
+    const spriteW = CAT_IDLE[0].length * scale * PX;
+    const spriteH = CAT_IDLE.length * scale * PX;
+
+    const x = pix(cat.x - spriteW*0.35); // 중심 보정
+    const y = pix(cat.y - spriteH*0.80 + bounce);
+
+    // 그림자
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(pix(cat.x - 18*PX), pix(cat.y + 10*PX), 36*PX, 6*PX);
+    ctx.globalAlpha = 1;
+
+    const flip = (cat.face === -1);
+
+    if (cat.state === 'idle'){
+      drawSprite(CAT_IDLE, x, y, scale, flip);
+      drawCatFaceDots(x, y, scale, flip);
+    } else if (cat.state === 'stare'){
+      drawSprite(CAT_STARE, x, y, scale, flip);
+      drawCatFaceDots(x, y, scale, flip);
+    } else {
+      drawSprite(frame===0 ? CAT_RUN1 : CAT_RUN2, x, y, scale, flip);
+    }
+  }
+
+  // =========================
+  // 업데이트/렌더 루프
+  // =========================
+  function update(t){
+    // stars drift
+    for(const s of stars){
+      s.y += s.v;
+      s.x += Math.sin((t/1700) + s.y/180)*0.06;
+      if (s.y > H+20){ s.y=-20; s.x=Math.random()*W; }
+    }
+
+    // particles
+    for(let i=sparkle.length-1;i>=0;i--){
+      const p = sparkle[i];
+      const age = t - p.born;
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.03;
+      p.a *= 0.985;
+      if (age>p.life || p.a<0.05) sparkle.splice(i,1);
+    }
+    for(let i=dust.length-1;i>=0;i--){
+      const p = dust[i];
+      const age = t - p.born;
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.045;
+      p.a *= 0.982;
+      if (age>p.life || p.a<0.05) dust.splice(i,1);
+    }
+
+    // cleanup done flowers
+    for(let i=flowers.length-1;i>=0;i--){
+      const f = flowers[i];
+      if (f.state==='done' && (t - f.doneAt) > 220) flowers.splice(i,1);
+    }
+
+    // cat movement
+    if (cat.state==='run' && cat.target){
+      const tx=cat.target.x, ty=cat.target.y;
+      const d=dist(cat.x,cat.y,tx,ty);
+
+      const step=Math.min(d, cat.speed);
+      const dx=(tx-cat.x)/(d||1);
+      const dy=(ty-cat.y)/(d||1);
+      cat.x = pix(cat.x + dx*step);
+      cat.y = pix(cat.y + dy*step);
+
+      if (Math.random()<0.38) spawnDust();
+
+      if (d < 10*PX){
+        // arrive: stop & stare
+        cat.state='stare';
+        cat.face = 1;
+
+        cat.target.state='done';
+        cat.target.doneAt=t;
+        cat.target=null;
+
+        setTimeout(()=>{
+          if (flowers.some(f=>f.state==='wait')) startNext();
+          else cat.state='idle';
+        }, 520);
+      }
+    } else if (cat.state==='idle' || cat.state==='stare'){
+      cat.face = 1;
+    }
+  }
+
+  function render(t){
+    ctx.clearRect(0,0,W,H);
+
+    // background
+    ctx.fillStyle = '#0b0f14';
+    ctx.fillRect(0,0,W,H);
+
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = '#23324f';
+    ctx.fillRect(0,0,W,H*0.36);
+    ctx.globalAlpha = 1;
+
+    // stars
+    for(const s of stars){
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(pix(s.x), pix(s.y), s.s, s.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // flowers
+    for(const f of flowers){
+      if (f.state !== 'done') drawFlower(f,t);
+    }
+
+    // sparkles
+    for(const p of sparkle){
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = p.c;
+      ctx.fillRect(pix(p.x), pix(p.y), p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // dust
+    for(const p of dust){
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(pix(p.x), pix(p.y), p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // cat
+    drawCat(t);
+
+    // sound toggle UI
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = 'white';
+    ctx.font = '12px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif';
+    ctx.fillText('터치: 꽃 생성(가까운 것부터)  |  🔈: 왼쪽 위', 12, 24);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(10, 32, 44, 28);
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = 'white';
+    ctx.font = '16px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif';
+    ctx.fillText(audioOn ? '🔈' : '🔇', 22, 53);
+    ctx.restore();
+  }
+
+  function loop(t){
+    update(t);
+    render(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // =========================
+  // 입력
+  // =========================
+  function getPos(e){
+    if (e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    return {x:e.clientX, y:e.clientY};
+  }
+
+  function onDown(e){
+    e.preventDefault?.();
+
+    // 첫 제스처에서 음악 시작(iOS 정책)
+    startAmbient();
+
+    const {x,y} = getPos(e);
+
+    // sound toggle hit area
+    if (x>=10 && x<=54 && y>=32 && y<=60){
+      setAudio(!audioOn);
+      return;
+    }
+
+    addFlower(x,y);
+  }
+
+  c.addEventListener('pointerdown', onDown, {passive:false});
+  c.addEventListener('touchstart', onDown, {passive:false});
+})();
+</script>
+</body>
+</html>
