@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>냥이 꽃 힐링</title>
+  <style>
+    html,body{height:100%;margin:0;background:#0b0f14;overflow:hidden}
+    canvas{display:block;width:100vw;height:100vh;touch-action:manipulation}
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d', { alpha:true });
+
+  // --- pixel size (작게!)
+  const PX = 2;
+
+  // --- canvas
+  const DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+  let W=0,H=0;
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    c.width = Math.floor(W*DPR);
+    c.height = Math.floor(H*DPR);
+    c.style.width = W+'px';
+    c.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.imageSmoothingEnabled = false;
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  const now = () => performance.now();
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist = (ax,ay,bx,by)=>Math.hypot(ax-bx, ay-by);
+  const pix = v => Math.round(v/PX)*PX;
+  const r = (a,b)=>a+Math.random()*(b-a);
+  const ri=(a,b)=>Math.floor(r(a,b+1));
+
+  // --- calm background "stars" (very subtle)
+  const stars = Array.from({length: 120}, () => ({
+    x: Math.random()*W,
+    y: Math.random()*H,
+    v: 0.05 + Math.random()*0.12,
+    a: 0.03 + Math.random()*0.08,
+    s: Math.random()<0.85?PX:PX*2
+  }));
+
+  // --- entities
+  const flowers = []; // {id,x,y,state:'wait'|'done', born, doneAt, hue}
+  const dust = [];    // {x,y,vx,vy,a,born,life,s}
+  const sparkle = []; // {x,y,vx,vy,a,born,life,c,s}
+
+  // --- audio (procedural ambient loop, no file)
+  let audioStarted = false;
+  let audioOn = true;
+  let AC=null, master=null, nodes=[];
+  function startAmbient(){
+    if (audioStarted) return;
+    audioStarted = true;
+
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain();
+    master.gain.value = 0.15; // very low
+    master.connect(AC.destination);
+
+    // soft "pad" = 2 detuned sine/triangle + slow filter + gentle noise
+    const filter = AC.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 280;
+    filter.Q.value = 0.6;
+
+    const padGain = AC.createGain();
+    padGain.gain.value = 0.22;
+
+    // LFO for filter sweep (very slow)
+    const lfo = AC.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.015; // super slow
+    const lfoGain = AC.createGain();
+    lfoGain.gain.value = 140; // sweep amount
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+
+    // two oscillators
+    const base = 110; // low A
+    const o1 = AC.createOscillator();
+    o1.type = 'sine';
+    o1.frequency.value = base * 1.0;
+
+    const o2 = AC.createOscillator();
+    o2.type = 'triangle';
+    o2.frequency.value = base * 1.005;
+
+    // slow amplitude breathing
+    const breath = AC.createOscillator();
+    breath.type = 'sine';
+    breath.frequency.value = 0.03;
+    const breathGain = AC.createGain();
+    breathGain.gain.value = 0.08;
+    breath.connect(breathGain);
+    breathGain.connect(padGain.gain);
+
+    // noise bed (very quiet)
+    const noiseBuf = AC.createBuffer(1, AC.sampleRate*2, AC.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i=0;i<data.length;i++){
+      data[i] = (Math.random()*2-1) * 0.12;
+    }
+    const noise = AC.createBufferSource();
+    noise.buffer = noiseBuf;
+    noise.loop = true;
+
+    const noiseFilter = AC.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 420;
+    noiseFilter.Q.value = 0.8;
+
+    const noiseGain = AC.createGain();
+    noiseGain.gain.value = 0.03;
+
+    // chain
+    o1.connect(filter);
+    o2.connect(filter);
+    filter.connect(padGain);
+    padGain.connect(master);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(master);
+
+    // start
+    lfo.start();
+    breath.start();
+    o1.start();
+    o2.start();
+    noise.start();
+
+    nodes = [lfo, breath, o1, o2, noise, filter, noiseFilter, padGain, noiseGain];
+  }
+
+  function setAudio(on){
+    audioOn = on;
+    if (!audioStarted) return;
+    if (master) master.gain.value = on ? 0.15 : 0.0;
+  }
+
+  // pause audio when tab hidden (calm)
+  document.addEventListener('visibilitychange', () => {
+    if (!audioStarted || !AC) return;
+    if (document.hidden) setAudio(false);
+    else setAudio(true);
+  });
+
+  // --- cat (TEMP placeholder; will replace later with your final cute one)
+  const cat = {
+    x: pix(W*0.5),
+    y: pix(H*0.62),
+    state: 'idle', // idle | run | stare
+    face: 1,
+    target: null
+  };
+  function setHome(){
+    cat.x = pix(W*0.5);
+    cat.y = pix(H*0.62);
+  }
+
+  // --- draw helpers
+  function pRect(x,y,w,h,col){
+    ctx.fillStyle = col;
+    ctx.fillRect(pix(x), pix(y), pix(w), pix(h));
+  }
+  function pDot(x,y,col,s=PX){
+    ctx.fillStyle = col;
+    ctx.fillRect(pix(x), pix(y), s, s);
+  }
+
+  // --- flower: tiny pixel flower
+  function drawFlower(f, t){
+    const x = pix(f.x), y = pix(f.y);
+    const age = t - f.born;
+    const pop = clamp(age/120, 0, 1);
+
+    // tiny sparkle glow
+    ctx.globalAlpha = 0.08;
+    pRect(x-6*PX,y-6*PX,12*PX,12*PX,'rgba(255,255,255,0.25)');
+    ctx.globalAlpha = 1;
+
+    // stem
+    pRect(x, y+3*PX, PX, 5*PX, 'rgba(120,220,160,0.9)');
+    // petals (super small)
+    const pet = `hsla(${f.hue},70%,78%,0.95)`;
+    const pet2= `hsla(${f.hue+10},70%,84%,0.95)`;
+    pRect(x, y, PX, PX, 'rgba(255,235,180,0.95)');
+    pRect(x-PX, y, PX, PX, pet);
+    pRect(x+PX, y, PX, PX, pet);
+    pRect(x, y-PX, PX, PX, pet2);
+    pRect(x, y+PX, PX, PX, pet2);
+
+    // gentle pop ring
+    if (pop < 1){
+      ctx.globalAlpha = (1-pop)*0.25;
+      pRect(x-2*PX,y-2*PX,4*PX,4*PX,'rgba(255,255,255,0.35)');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // --- temp cat silhouette (tiny + calm)
+  function drawCat(t){
+    const running = cat.state === 'run';
+    const bounce = running ? Math.sin(t/90)*PX : 0;
+    const frame = running ? (Math.floor(t/80)%2) : 0;
+
+    const x = pix(cat.x);
+    const y = pix(cat.y + bounce);
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(cat.face, 1);
+
+    // shadow
+    ctx.globalAlpha = 0.18;
+    pRect(-7*PX, 8*PX, 14*PX, 2*PX, 'rgba(0,0,0,0.8)');
+    ctx.globalAlpha = 1;
+
+    const body = 'rgba(235,232,225,0.92)';
+    const body2= 'rgba(220,216,208,0.92)';
+    const line = 'rgba(40,44,52,0.35)';
+
+    // body block
+    pRect(-5*PX, 0, 10*PX, 6*PX, body);
+    pRect(-4*PX, PX, 8*PX, 4*PX, body2);
+
+    // legs
+    if (running){
+      if (frame===0){
+        pRect(-4*PX, 5*PX, 2*PX, 3*PX, body);
+        pRect( 2*PX, 5*PX, 2*PX, 3*PX, body);
+      } else {
+        pRect(-1*PX, 5*PX, 2*PX, 3*PX, body);
+        pRect( 5*PX, 5*PX, 2*PX, 3*PX, body);
+      }
+    } else {
+      pRect(-3*PX, 5*PX, 2*PX, 3*PX, body);
+      pRect( 1*PX, 5*PX, 2*PX, 3*PX, body);
+    }
+
+    // head
+    pRect( 2*PX, -5*PX, 6*PX, 5*PX, body);
+    pRect( 3*PX, -4*PX, 4*PX, 3*PX, body2);
+    // ears
+    pRect( 3*PX, -7*PX, 2*PX, 2*PX, body);
+    pRect( 7*PX, -7*PX, 2*PX, 2*PX, body);
+
+    // face (very minimal: stare => eyes appear)
+    if (cat.state === 'stare' || cat.state === 'idle'){
+      pRect( 4*PX, -3*PX, PX, PX, 'rgba(25,25,25,0.75)');
+      pRect( 7*PX, -3*PX, PX, PX, 'rgba(25,25,25,0.75)');
+      // tiny nose
+      pRect( 6*PX, -2*PX, PX, PX, 'rgba(255,180,190,0.6)');
+    }
+
+    // tail
+    const tailWig = (cat.state==='idle'||cat.state==='stare') ? Math.sin(t/800)*PX : Math.sin(t/220)*PX;
+    pRect(-7*PX + tailWig, 1*PX, 2*PX, 2*PX, body2);
+    pRect(-9*PX + tailWig, 0*PX, 2*PX, 2*PX, body);
+
+    ctx.restore();
+  }
+
+  function spawnDust(){
+    // tiny white pixels while running
+    dust.push({
+      x: pix(cat.x - cat.face*5*PX + ri(-1,1)*PX),
+      y: pix(cat.y + 7*PX + ri(-1,1)*PX),
+      vx: (-cat.face)*(0.4 + Math.random()*0.9),
+      vy: -0.2 - Math.random()*0.6,
+      a: 0.55,
+      born: now(),
+      life: 380 + Math.random()*260,
+      s: Math.random()<0.85?PX:PX*2
+    });
+  }
+
+  function spawnSparkle(x,y,hue){
+    const n = ri(6,10);
+    for(let i=0;i<n;i++){
+      sparkle.push({
+        x: pix(x), y: pix(y),
+        vx: (Math.random()*2-1)*(0.5+Math.random()*0.9),
+        vy: (Math.random()*2-1)*(0.5+Math.random()*0.9) - 0.25,
+        a: 0.7,
+        born: now(),
+        life: 420 + Math.random()*260,
+        c: (Math.random()<0.7) ? 'rgba(255,255,255,0.8)' : `hsla(${hue},80%,80%,0.9)`,
+        s: Math.random()<0.85?PX:PX*2
+      });
+    }
+  }
+
+  function addFlower(x,y){
+    const f = {
+      id: Math.random()*1e9,
+      x: pix(x),
+      y: pix(Math.max(60, y)),
+      state: 'wait',
+      born: now(),
+      hue: 300 + (Math.random()*50 - 25)
+    };
+    flowers.push(f); // queue order
+    spawnSparkle(f.x, f.y, f.hue);
+    if (cat.state !== 'run' && !cat.target) startNext();
+  }
+
+  function startNext(){
+    const next = flowers.find(f=>f.state==='wait');
+    if (!next){
+      cat.target = null;
+      cat.state = 'idle';
+      cat.face = 1;
+      return;
+    }
+    cat.target = next;
+    cat.state = 'run';
+    cat.face = (next.x >= cat.x) ? 1 : -1;
+  }
+
+  // --- update/render
+  function update(t){
+    // stars drift
+    for(const s of stars){
+      s.y += s.v;
+      s.x += Math.sin((t/1600) + s.y/180)*0.06;
+      if (s.y > H+20){ s.y=-20; s.x=Math.random()*W; }
+    }
+
+    // particles
+    for(let i=sparkle.length-1;i>=0;i--){
+      const p = sparkle[i];
+      const age = t - p.born;
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.03;
+      p.a *= 0.985;
+      if (age>p.life || p.a<0.05) sparkle.splice(i,1);
+    }
+    for(let i=dust.length-1;i>=0;i--){
+      const p = dust[i];
+      const age = t - p.born;
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.045;
+      p.a *= 0.982;
+      if (age>p.life || p.a<0.05) dust.splice(i,1);
+    }
+
+    // cleanup done flowers
+    for(let i=flowers.length-1;i>=0;i--){
+      const f = flowers[i];
+      if (f.state==='done' && (t - f.doneAt) > 220) flowers.splice(i,1);
+    }
+
+    // cat
+    if (cat.state==='run' && cat.target){
+      const tx=cat.target.x, ty=cat.target.y;
+      const d=dist(cat.x,cat.y,tx,ty);
+      const sp=2.6; // calm run
+      const step=Math.min(d, sp);
+      const dx=(tx-cat.x)/(d||1);
+      const dy=(ty-cat.y)/(d||1);
+      cat.x = pix(cat.x + dx*step);
+      cat.y = pix(cat.y + dy*step);
+
+      if (Math.random()<0.40) spawnDust();
+
+      if (d < 10*PX){
+        // arrive: stop & stare
+        cat.state='stare';
+        cat.face=1;
+        cat.target.state='done';
+        cat.target.doneAt=t;
+        cat.target=null;
+
+        setTimeout(()=>{
+          if (flowers.some(f=>f.state==='wait')) startNext();
+          else cat.state='idle';
+        }, 520);
+      }
+    } else if (cat.state==='idle'){
+      // just stay and look
+      cat.face = 1;
+    } else if (cat.state==='stare'){
+      cat.face = 1;
+    }
+  }
+
+  function render(t){
+    ctx.clearRect(0,0,W,H);
+
+    // calm background
+    ctx.fillStyle = '#0b0f14';
+    ctx.fillRect(0,0,W,H);
+
+    // subtle top haze
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = '#23324f';
+    ctx.fillRect(0,0,W,H*0.36);
+    ctx.globalAlpha = 1;
+
+    // stars
+    for(const s of stars){
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(pix(s.x), pix(s.y), s.s, s.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // flowers
+    for(const f of flowers){
+      if (f.state !== 'done') drawFlower(f,t);
+    }
+
+    // sparkles
+    for(const p of sparkle){
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = p.c;
+      ctx.fillRect(pix(p.x), pix(p.y), p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // dust
+    for(const p of dust){
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(pix(p.x), pix(p.y), p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // cat
+    drawCat(t);
+
+    // tiny UI (sound toggle)
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = 'white';
+    ctx.font = '12px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif';
+    ctx.fillText('터치: 꽃 생성 (순서대로 냥이가 달려감)  |  🔈: 왼쪽 위', 12, 24);
+    ctx.restore();
+
+    // sound icon hit area (top-left)
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(10, 32, 44, 28);
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = 'white';
+    ctx.font = '16px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif';
+    ctx.fillText(audioOn ? '🔈' : '🔇', 22, 53);
+    ctx.restore();
+  }
+
+  function loop(t){
+    update(t);
+    render(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // --- input
+  function getPos(e){
+    if (e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    return {x:e.clientX, y:e.clientY};
+  }
+
+  function onDown(e){
+    e.preventDefault?.();
+
+    // start audio on first user gesture
+    if (!audioStarted) startAmbient();
+
+    const {x,y} = getPos(e);
+
+    // toggle sound if tap on icon area
+    if (x>=10 && x<=54 && y>=32 && y<=60){
+      setAudio(!audioOn);
+      return;
+    }
+
+    addFlower(x,y);
+  }
+
+  c.addEventListener('pointerdown', onDown, {passive:false});
+  c.addEventListener('touchstart', onDown, {passive:false});
+})();
+</script>
+</body>
+</html>
