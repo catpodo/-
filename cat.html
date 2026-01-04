@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>냥이 꽃줍기</title>
+  <style>
+    :root{
+      --bg1:#0b0f14; --bg2:#0a1220;
+      --text:#e9eef7; --muted:#97a3b6;
+      --glow: rgba(255,255,255,.12);
+    }
+    html,body{height:100%; margin:0; background: radial-gradient(1200px 900px at 50% 20%, #101b2e 0%, var(--bg1) 55%, #070a0e 100%); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;}
+    #hud{
+      position:fixed; top:env(safe-area-inset-top); left:0; right:0;
+      padding:14px 14px 10px; pointer-events:none;
+      display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+    }
+    .pill{
+      pointer-events:none;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:999px;
+      padding:8px 10px;
+      font-size:12px;
+      color:var(--muted);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      backdrop-filter: blur(6px);
+    }
+    .pill b{color:var(--text); font-weight:800;}
+    #hint{
+      position:fixed; left:0; right:0; bottom:calc(12px + env(safe-area-inset-bottom));
+      text-align:center; font-size:12px; color:var(--muted);
+      opacity:.9; user-select:none;
+    }
+    canvas{display:block; width:100vw; height:100vh; touch-action:manipulation;}
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="pill">🐾 <b>냥이 꽃줍기</b> · 아무 곳이나 톡</div>
+    <div class="pill">꽃 <b id="count">0</b></div>
+  </div>
+  <div id="hint">터치하면 꽃이 피고, 고양이가 달려가서 잡아요.</div>
+  <canvas id="c"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:true });
+  const countEl = document.getElementById('count');
+
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  function resize(){
+    canvas.width = Math.floor(innerWidth * DPR);
+    canvas.height = Math.floor(innerHeight * DPR);
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // --- utilities
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx, ay-by);
+  const now=()=>performance.now();
+
+  // --- world
+  const W = () => innerWidth;
+  const H = () => innerHeight;
+
+  const petals = [];
+  const flowers = [];
+  let picked = 0;
+
+  // --- cat
+  const cat = {
+    x: W()*0.5,
+    y: H()*0.62,
+    vx: 0, vy: 0,
+    tx: null, ty: null,
+    state: 'idle', // idle | run | pounce | return
+    facing: 1,
+    bob: 0,
+    blinkT: 0,
+    blink: 0,
+    homeX: null, homeY: null,
+  };
+  cat.homeX = cat.x; cat.homeY = cat.y;
+
+  function setTarget(x,y){
+    cat.tx = x; cat.ty = y;
+    cat.state = 'run';
+    cat.facing = (cat.tx >= cat.x) ? 1 : -1;
+  }
+
+  // --- background: subtle drifting specks
+  const specks = Array.from({length: 55}, () => ({
+    x: Math.random()*W(),
+    y: Math.random()*H(),
+    r: 0.5 + Math.random()*1.5,
+    a: 0.04 + Math.random()*0.08,
+    s: 0.05 + Math.random()*0.22,
+  }));
+
+  function addFlower(x,y){
+    // 1) create flower
+    const f = {
+      id: crypto?.randomUUID?.() ?? (Math.random()+''+now()),
+      x, y,
+      r: 0,
+      born: now(),
+      life: 1200,
+      hue: 290 + (Math.random()*50 - 25), // pink/purple range
+      gone: false,
+    };
+    flowers.push(f);
+
+    // 2) little petal burst
+    const n = 10 + Math.floor(Math.random()*8);
+    for(let i=0;i<n;i++){
+      const ang = Math.random()*Math.PI*2;
+      const sp = 0.6 + Math.random()*2.2;
+      petals.push({
+        x, y,
+        vx: Math.cos(ang)*sp,
+        vy: Math.sin(ang)*sp - (0.4+Math.random()*0.8),
+        r: 2 + Math.random()*3.5,
+        rot: Math.random()*Math.PI*2,
+        vr: (Math.random()*0.12 - 0.06),
+        a: 0.9,
+        hue: f.hue + (Math.random()*20-10),
+      });
+    }
+
+    // 3) cat runs to this flower (latest touch wins)
+    setTarget(x,y);
+  }
+
+  function drawFlower(f, t){
+    const age = t - f.born;
+    const grow = clamp(age/180, 0, 1);
+    const fade = clamp(1 - (age - (f.life*0.55)) / (f.life*0.45), 0, 1);
+    const r = lerp(0, 18, grow) * (0.92 + 0.08*Math.sin(age/80));
+    f.r = r;
+
+    // glow ring
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.globalAlpha = 0.25 * fade;
+    ctx.beginPath();
+    ctx.arc(0,0, r*1.35, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${f.hue}, 85%, 70%, 1)`;
+    ctx.filter = 'blur(10px)';
+    ctx.fill();
+    ctx.filter = 'none';
+    ctx.restore();
+
+    // petals (simple 6-petal)
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.globalAlpha = 0.85 * fade;
+    for(let i=0;i<6;i++){
+      const ang = i*(Math.PI*2/6) + Math.sin(age/200)*0.06;
+      const px = Math.cos(ang)*r*0.55;
+      const py = Math.sin(ang)*r*0.55;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r*0.55, r*0.30, 0, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${f.hue}, 85%, ${68 + (i%2)*6}%, 1)`;
+      ctx.fill();
+      ctx.restore();
+    }
+    // center
+    ctx.beginPath();
+    ctx.arc(0,0, r*0.18, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${(f.hue+60)%360}, 90%, 70%, 1)`;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawCat(t){
+    // tiny idle bob & blink
+    cat.bob = Math.sin(t/520)*2.2;
+    cat.blinkT += 1;
+    if (cat.blink <= 0 && Math.random() < 0.008) cat.blink = 1; // start blink
+    if (cat.blink > 0) cat.blink = Math.max(0, cat.blink - 0.08);
+
+    const runWiggle = (cat.state==='run') ? Math.sin(t/65)*2.5 : 0;
+    const squash = (cat.state==='pounce') ? 0.85 : 1.0;
+
+    const x = cat.x, y = cat.y + cat.bob + runWiggle;
+    const s = 1.0;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(cat.facing, 1);
+    ctx.scale(s, s);
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.beginPath();
+    ctx.ellipse(0, 38, 34, 10, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#000';
+    ctx.filter = 'blur(6px)';
+    ctx.fill();
+    ctx.filter='none';
+    ctx.restore();
+
+    // body
+    ctx.save();
+    ctx.scale(1, squash);
+    ctx.beginPath();
+    ctx.roundRect(-28, -6, 56, 44, 22);
+    ctx.fillStyle = 'rgba(245, 242, 235, 0.92)';
+    ctx.fill();
+    ctx.restore();
+
+    // tail
+    ctx.save();
+    ctx.translate(-28, 12);
+    ctx.rotate(-0.25 + Math.sin(t/600)*0.18);
+    ctx.beginPath();
+    ctx.roundRect(-34, -8, 40, 16, 10);
+    ctx.fillStyle = 'rgba(245, 242, 235, 0.92)';
+    ctx.fill();
+    ctx.restore();
+
+    // head
+    ctx.beginPath();
+    ctx.roundRect(-26, -44, 52, 44, 22);
+    ctx.fillStyle = 'rgba(250, 247, 242, 0.95)';
+    ctx.fill();
+
+    // ears
+    ctx.beginPath();
+    ctx.moveTo(-18, -44);
+    ctx.lineTo(-30, -62);
+    ctx.lineTo(-6, -48);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(250, 247, 242, 0.95)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(18, -44);
+    ctx.lineTo(30, -62);
+    ctx.lineTo(6, -48);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(250, 247, 242, 0.95)';
+    ctx.fill();
+
+    // face details
+    // eyes (blink squish)
+    const eyeH = lerp(8, 1.4, cat.blink);
+    const eyeY = -24;
+    ctx.fillStyle = 'rgba(25, 32, 40, 0.95)';
+    ctx.beginPath(); ctx.ellipse(-10, eyeY, 5.2, eyeH, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( 10, eyeY, 5.2, eyeH, 0, 0, Math.PI*2); ctx.fill();
+
+    // tiny highlight if not blinking
+    if (cat.blink < 0.6){
+      ctx.fillStyle = 'rgba(255,255,255,.65)';
+      ctx.beginPath(); ctx.ellipse(-11, eyeY-2, 1.3, 2.0, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(  9, eyeY-2, 1.3, 2.0, 0, 0, Math.PI*2); ctx.fill();
+    }
+
+    // nose
+    ctx.fillStyle = 'rgba(255, 180, 190, 0.9)';
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.lineTo(-4, -12);
+    ctx.lineTo(4, -12);
+    ctx.closePath();
+    ctx.fill();
+
+    // mouth
+    ctx.strokeStyle = 'rgba(25,32,40,0.55)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, -12);
+    ctx.quadraticCurveTo(-6, -8, -10, -10);
+    ctx.moveTo(0, -12);
+    ctx.quadraticCurveTo( 6, -8,  10, -10);
+    ctx.stroke();
+
+    // whiskers
+    ctx.strokeStyle = 'rgba(25,32,40,0.35)';
+    ctx.lineWidth = 1.6;
+    for (const side of [-1,1]){
+      ctx.beginPath();
+      ctx.moveTo(12*side, -14);
+      ctx.lineTo((28+Math.sin(t/700)*2)*side, -18);
+      ctx.moveTo(12*side, -12);
+      ctx.lineTo((30+Math.sin(t/680)*2)*side, -12);
+      ctx.moveTo(12*side, -10);
+      ctx.lineTo((28+Math.sin(t/720)*2)*side, -6);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // polyfill for roundRect in older Safari
+  if(!CanvasRenderingContext2D.prototype.roundRect){
+    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+      r = Math.min(r, w/2, h/2);
+      this.beginPath();
+      this.moveTo(x+r, y);
+      this.arcTo(x+w, y, x+w, y+h, r);
+      this.arcTo(x+w, y+h, x, y+h, r);
+      this.arcTo(x, y+h, x, y, r);
+      this.arcTo(x, y, x+w, y, r);
+      this.closePath();
+      return this;
+    }
+  }
+
+  function step(t){
+    // update specks
+    for(const s of specks){
+      s.y += s.s;
+      s.x += Math.sin(t/1200 + s.y/200)*0.08;
+      if(s.y > H()+20){ s.y = -20; s.x = Math.random()*W(); }
+    }
+
+    // update petals
+    for(let i=petals.length-1;i>=0;i--){
+      const p = petals[i];
+      p.vy += 0.03;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.a *= 0.985;
+      if(p.a < 0.05 || p.y > H()+80) petals.splice(i,1);
+    }
+
+    // update flowers (auto fade if not picked)
+    for(let i=flowers.length-1;i>=0;i--){
+      const f = flowers[i];
+      if(t - f.born > f.life || f.gone) flowers.splice(i,1);
+    }
+
+    // cat movement / behavior
+    if (cat.state === 'run' && cat.tx != null){
+      const dx = cat.tx - cat.x;
+      const dy = cat.ty - cat.y;
+      const d = Math.hypot(dx,dy);
+      const speed = 7.5; // px per frame-ish (we'll scale by dt below)
+      // time-based step
+      // approximate dt from RAF
+      // (simple: assume ~16ms; good enough for cozy game)
+      const stepLen = Math.min(d, speed);
+      cat.x += (dx / (d||1)) * stepLen;
+      cat.y += (dy / (d||1)) * stepLen;
+
+      // “catch” when close to any live flower near target
+      const nearest = flowers
+        .map(f => ({f, d: dist(cat.x, cat.y, f.x, f.y)}))
+        .sort((a,b)=>a.d-b.d)[0];
+
+      if (d < 18 || (nearest && nearest.d < 26)){
+        cat.state = 'pounce';
+        // remove the flower under cat
+        if (nearest) nearest.f.gone = true;
+        picked++;
+        countEl.textContent = String(picked);
+        // after short pounce, return home
+        setTimeout(() => {
+          cat.tx = cat.homeX; cat.ty = cat.homeY;
+          cat.state = 'return';
+          cat.facing = (cat.tx >= cat.x) ? 1 : -1;
+        }, 180);
+      }
+    } else if (cat.state === 'return' && cat.tx != null){
+      const dx = cat.tx - cat.x;
+      const dy = cat.ty - cat.y;
+      const d = Math.hypot(dx,dy);
+      const speed = 6.2;
+      const stepLen = Math.min(d, speed);
+      cat.x += (dx / (d||1)) * stepLen;
+      cat.y += (dy / (d||1)) * stepLen;
+      if (d < 6){
+        cat.state = 'idle';
+        cat.tx = cat.ty = null;
+      }
+    } else if (cat.state === 'pounce'){
+      // do nothing (short pause handled by timeout)
+    } else {
+      // idle drift (tiny)
+      cat.x = lerp(cat.x, cat.homeX, 0.02);
+      cat.y = lerp(cat.y, cat.homeY, 0.02);
+    }
+
+    // render
+    ctx.clearRect(0,0,W(),H());
+
+    // specks
+    ctx.save();
+    for(const s of specks){
+      ctx.globalAlpha = s.a;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // flowers
+    for(const f of flowers) drawFlower(f, t);
+
+    // petals
+    ctx.save();
+    for(const p of petals){
+      ctx.globalAlpha = p.a;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.ellipse(0,0, p.r*0.9, p.r*0.55, 0, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${p.hue}, 85%, 72%, 1)`;
+      ctx.fill();
+      ctx.setTransform(DPR,0,0,DPR,0,0); // reset quickly (since DPR transform)
+    }
+    ctx.restore();
+
+    // cat
+    drawCat(t);
+
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+
+  // input
+  function getPos(e){
+    if (e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    return {x:e.clientX, y:e.clientY};
+  }
+  function onTap(e){
+    e.preventDefault?.();
+    const {x,y} = getPos(e);
+
+    // keep flowers away from HUD area a bit
+    const safeTop = 70;
+    const yy = Math.max(safeTop, y);
+
+    addFlower(x, yy);
+    // hide hint after first interaction
+    const hint = document.getElementById('hint');
+    if (hint) hint.style.opacity = 0;
+  }
+
+  canvas.addEventListener('pointerdown', onTap, {passive:false});
+  canvas.addEventListener('touchstart', onTap, {passive:false});
+
+})();
+</script>
+</body>
+</html>
