@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>픽셀냥이 꽃줍기</title>
+  <style>
+    html,body{height:100%;margin:0;background:#0b0f14;overflow:hidden}
+    canvas{display:block;width:100vw;height:100vh;touch-action:manipulation}
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d', { alpha: true });
+
+  // --- Canvas scale
+  const DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+  let W=0,H=0;
+  function resize(){
+    W = innerWidth; H = innerHeight;
+    c.width = Math.floor(W*DPR);
+    c.height = Math.floor(H*DPR);
+    c.style.width = W+'px';
+    c.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.imageSmoothingEnabled = false; // pixel look
+  }
+  addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // --- Utils
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx, ay-by);
+  const randi=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
+  const now=()=>performance.now();
+
+  // --- Pixel grid size (bigger => more pixel)
+  const PX = 4; // 4px blocks -> clear pixel feel on mobile
+  const pix = v => Math.round(v/PX)*PX;
+
+  // --- Calm background stars (slow drifting)
+  const stars = Array.from({length: 80}, () => ({
+    x: Math.random()*W,
+    y: Math.random()*H,
+    v: 0.08 + Math.random()*0.18,
+    a: 0.04 + Math.random()*0.10,
+    s: randi(1,2)
+  }));
+
+  // --- Flower queue & particles
+  const flowers = []; // {id,x,y,spawn,life,state}
+  const dust = [];    // running dust pixels
+  const sparkle = []; // flower spawn sparkle
+
+  let pickedCount = 0;
+
+  // --- Cat state
+  const cat = {
+    x: pix(W*0.5),
+    y: pix(H*0.62),
+    homeX: pix(W*0.5),
+    homeY: pix(H*0.62),
+    state: 'idle', // idle | run | stare
+    target: null,  // flower ref
+    speed: 2.2,    // base in px per frame (we'll show as pixel steps)
+    face: 1,
+    step: 0,
+    bounce: 0,
+    stareT: 0
+  };
+
+  function setHome(){
+    cat.homeX = pix(W*0.5);
+    cat.homeY = pix(H*0.62);
+  }
+
+  // --- Pixel drawing helpers
+  function pRect(x,y,w,h, color){
+    ctx.fillStyle = color;
+    ctx.fillRect(pix(x), pix(y), pix(w), pix(h));
+  }
+  function pDot(x,y, color, s=PX){
+    ctx.fillStyle = color;
+    ctx.fillRect(pix(x), pix(y), s, s);
+  }
+
+  // Simple 8-bit flower sprite (pixel art)
+  function drawFlower(f, t){
+    const age = t - f.spawn;
+    const pop = clamp(age/140, 0, 1);
+    const fade = clamp(1 - (age - 1100)/260, 0, 1);
+    const a = 0.9 * fade;
+
+    // Slight pulse
+    const pulse = 1 + Math.sin(t/260 + f.id*1.7)*0.04;
+
+    ctx.save();
+    ctx.globalAlpha = a;
+
+    const x = pix(f.x), y = pix(f.y);
+
+    // glow (soft, still pixel-ish)
+    ctx.globalAlpha = a * 0.18;
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x - 8*PX, y - 8*PX, 16*PX, 16*PX);
+
+    ctx.globalAlpha = a;
+    // stem
+    pRect(x, y + 3*PX, PX, 6*PX, 'rgba(120,220,160,0.9)');
+    // leaves
+    pRect(x - 2*PX, y + 6*PX, 2*PX, PX, 'rgba(120,220,160,0.85)');
+    pRect(x + PX,  y + 6*PX, 2*PX, PX, 'rgba(120,220,160,0.85)');
+
+    // petals (pink/purple range)
+    const pet = f.petal;
+    const pet2 = f.petal2;
+
+    // 3x3-ish blossom using blocks
+    // center
+    pRect(x, y, PX, PX, 'rgba(255,225,160,0.95)');
+    // petals around
+    pRect(x - PX, y, PX, PX, pet);
+    pRect(x + PX, y, PX, PX, pet);
+    pRect(x, y - PX, PX, PX, pet);
+    pRect(x, y + PX, PX, PX, pet);
+
+    // corners (lighter)
+    pRect(x - PX, y - PX, PX, PX, pet2);
+    pRect(x + PX, y - PX, PX, PX, pet2);
+    pRect(x - PX, y + PX, PX, PX, pet2);
+    pRect(x + PX, y + PX, PX, PX, pet2);
+
+    // little extra bloom as it pops
+    if (pop < 1){
+      ctx.globalAlpha = a * (1-pop) * 0.6;
+      pRect(x - 2*PX, y - 2*PX, 4*PX, 4*PX, 'rgba(255,255,255,0.25)');
+    }
+
+    ctx.restore();
+  }
+
+  // Simple 8-bit cat sprite with run frames
+  function drawCat(t){
+    // 8-bit palette
+    const fur = 'rgba(248,245,238,0.95)';
+    const fur2 = 'rgba(235,230,222,0.95)';
+    const line = 'rgba(30,36,44,0.55)';
+    const eye  = 'rgba(20,24,30,0.95)';
+    const pink = 'rgba(255,170,185,0.9)';
+
+    const running = (cat.state === 'run');
+    const frame = running ? (Math.floor(t/90) % 2) : 0;
+
+    // bounce while running
+    const bounce = running ? Math.sin(t/80) * 2*PX : 0;
+
+    const x = pix(cat.x);
+    const y = pix(cat.y + bounce);
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(cat.face, 1);
+    ctx.imageSmoothingEnabled = false;
+
+    // shadow
+    ctx.globalAlpha = 0.22;
+    pRect(-8*PX, 8*PX, 16*PX, 3*PX, 'rgba(0,0,0,0.6)');
+    ctx.globalAlpha = 1;
+
+    // body (8x5 blocks)
+    pRect(-6*PX, 0*PX, 12*PX, 7*PX, fur);
+    // belly highlight
+    pRect(-5*PX, 1*PX, 10*PX, 5*PX, fur2);
+
+    // legs (run frames alternate)
+    if (running){
+      if (frame === 0){
+        pRect(-5*PX, 6*PX, 3*PX, 3*PX, fur);
+        pRect( 2*PX, 6*PX, 3*PX, 3*PX, fur);
+        pRect(-1*PX, 6*PX, 2*PX, 2*PX, fur2);
+      } else {
+        pRect(-2*PX, 6*PX, 3*PX, 3*PX, fur);
+        pRect( 5*PX, 6*PX, 3*PX, 3*PX, fur);
+        pRect( 1*PX, 6*PX, 2*PX, 2*PX, fur2);
+      }
+    } else {
+      pRect(-4*PX, 6*PX, 3*PX, 3*PX, fur);
+      pRect( 1*PX, 6*PX, 3*PX, 3*PX, fur);
+    }
+
+    // tail
+    const tailWig = (cat.state==='idle' || cat.state==='stare') ? Math.sin(t/700)*1.2*PX : Math.sin(t/220)*1.2*PX;
+    pRect(-8*PX + tailWig, 2*PX, 3*PX, 2*PX, fur);
+    pRect(-10*PX + tailWig, 1*PX, 2*PX, 2*PX, fur2);
+
+    // head (6x5)
+    pRect( 2*PX, -6*PX, 7*PX, 6*PX, fur);
+    pRect( 3*PX, -5*PX, 5*PX, 4*PX, fur2);
+
+    // ears
+    pRect( 3*PX, -8*PX, 2*PX, 2*PX, fur);
+    pRect( 7*PX, -8*PX, 2*PX, 2*PX, fur);
+
+    // eyes (blink softly in stare)
+    let blink = 0;
+    if (cat.state === 'stare'){
+      blink = (Math.floor(t/2200) % 5 === 0) ? clamp((Math.sin(t/90)+1)/2, 0, 1) : 0; // occasional blink
+    }
+    if (blink > 0.65){
+      // closed eyes (line)
+      pRect( 4*PX, -4*PX, 2*PX, PX, line);
+      pRect( 7*PX, -4*PX, 2*PX, PX, line);
+    } else {
+      pRect( 4*PX, -4*PX, PX, PX, eye);
+      pRect( 8*PX, -4*PX, PX, PX, eye);
+      // tiny highlight
+      pRect( 4*PX, -5*PX, PX, PX, 'rgba(255,255,255,0.5)');
+    }
+
+    // nose
+    pRect( 6*PX, -3*PX, PX, PX, pink);
+
+    // mouth
+    pRect( 6*PX, -2*PX, PX, PX, line);
+    pRect( 5*PX, -1*PX, PX, PX, line);
+    pRect( 7*PX, -1*PX, PX, PX, line);
+
+    // whiskers
+    pRect( 2*PX, -2*PX, 2*PX, PX, line);
+    pRect( 2*PX, -4*PX, 2*PX, PX, line);
+    pRect(10*PX, -2*PX, 2*PX, PX, line);
+    pRect(10*PX, -4*PX, 2*PX, PX, line);
+
+    ctx.restore();
+  }
+
+  function spawnDust(x,y, face){
+    // small white pixels trailing while running
+    dust.push({
+      x: pix(x - face*6*PX + randi(-2,2)*PX),
+      y: pix(y + 7*PX + randi(-1,1)*PX),
+      vx: (-face)*(0.6 + Math.random()*1.2),
+      vy: -0.3 - Math.random()*0.8,
+      a: 0.7,
+      life: 420 + Math.random()*240,
+      born: now(),
+      s: (Math.random()<0.6?PX:2*PX)
+    });
+  }
+
+  function spawnSparkle(x,y, hue=300){
+    const n = randi(8,14);
+    for(let i=0;i<n;i++){
+      sparkle.push({
+        x: pix(x),
+        y: pix(y),
+        vx: (Math.random()*2-1)*(0.6+Math.random()*1.3),
+        vy: (Math.random()*2-1)*(0.6+Math.random()*1.3) - 0.4,
+        a: 0.8,
+        born: now(),
+        life: 480 + Math.random()*280,
+        c: (Math.random()<0.7) ? 'rgba(255,255,255,0.85)' : `hsla(${hue},85%,75%,0.9)`,
+        s: (Math.random()<0.6?PX:2*PX)
+      });
+    }
+  }
+
+  function addFlower(x,y){
+    const fx = pix(x);
+    const fy = pix(Math.max(70, y)); // avoid top
+    const hue = 290 + (Math.random()*50 - 25);
+    const f = {
+      id: Math.random()*10000,
+      x: fx, y: fy,
+      spawn: now(),
+      life: 1400,
+      petal: `hsla(${hue},85%,72%,0.95)`,
+      petal2:`hsla(${hue+10},85%,78%,0.95)`,
+      state: 'wait' // wait | done
+    };
+    flowers.push(f);           // <- 순서 유지 (큐)
+    spawnSparkle(fx, fy, hue); // spawn pop
+    // if cat has no target, start
+    if (!cat.target && cat.state !== 'run') {
+      startNext();
+    }
+  }
+
+  function startNext(){
+    // pick first waiting flower
+    const next = flowers.find(f => f.state === 'wait');
+    if (!next){
+      // nothing left: go home and idle
+      cat.target = null;
+      cat.state = 'idle';
+      cat.face = (cat.homeX >= cat.x) ? 1 : -1;
+      return;
+    }
+    cat.target = next;
+    cat.state = 'run';
+    cat.face = (next.x >= cat.x) ? 1 : -1;
+  }
+
+  function update(t){
+    // background drift
+    for(const s of stars){
+      s.y += s.v;
+      s.x += Math.sin((t/1500) + s.y/200)*0.08;
+      if (s.y > H+20){ s.y = -20; s.x = Math.random()*W; }
+    }
+
+    // update sparkle
+    for(let i=sparkle.length-1;i>=0;i--){
+      const p = sparkle[i];
+      const age = t - p.born;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.03;
+      p.a *= 0.985;
+      if (age > p.life || p.a < 0.05) sparkle.splice(i,1);
+    }
+
+    // update dust
+    for(let i=dust.length-1;i>=0;i--){
+      const p = dust[i];
+      const age = t - p.born;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.a *= 0.982;
+      if (age > p.life || p.a < 0.05) dust.splice(i,1);
+    }
+
+    // flowers auto-life (but if waiting, keep until cat gets it)
+    for(const f of flowers){
+      if (f.state === 'done') continue;
+      // let them stay calmly; optional fade not needed
+    }
+    // cleanup done flowers after short
+    for(let i=flowers.length-1;i>=0;i--){
+      const f = flowers[i];
+      if (f.state === 'done' && (t - f.doneAt) > 220){
+        flowers.splice(i,1);
+      }
+    }
+
+    // cat behavior
+    if (cat.state === 'run' && cat.target){
+      const tx = cat.target.x, ty = cat.target.y;
+      const d = dist(cat.x, cat.y, tx, ty);
+
+      // move in pixel steps
+      const sp = 3.0; // a bit faster but cozy
+      const stepLen = Math.min(d, sp);
+      const dx = (tx - cat.x) / (d || 1);
+      const dy = (ty - cat.y) / (d || 1);
+      cat.x = pix(cat.x + dx*stepLen);
+      cat.y = pix(cat.y + dy*stepLen);
+
+      // running dust emission
+      if (Math.random() < 0.45){
+        spawnDust(cat.x, cat.y, cat.face);
+      }
+
+      // arrived
+      if (d < 10*PX){
+        // stop and stare at viewer
+        cat.state = 'stare';
+        cat.stareT = t;
+
+        // mark flower as done (disappear)
+        cat.target.state = 'done';
+        cat.target.doneAt = t;
+        cat.target = null;
+
+        // after a calm pause, go next target
+        setTimeout(() => {
+          // if more flowers queued, run next; else stay staring a bit then idle
+          const hasNext = flowers.some(f => f.state === 'wait');
+          if (hasNext){
+            startNext();
+          } else {
+            // remain idle (still looking)
+            cat.state = 'idle';
+          }
+        }, 500);
+      }
+    } else if (cat.state === 'idle'){
+      // calm: slowly return to home but keep facing show
+      cat.x = pix(lerp(cat.x, cat.homeX, 0.02));
+      cat.y = pix(lerp(cat.y, cat.homeY, 0.02));
+      // face toward center (viewer)
+      cat.face = 1;
+    } else if (cat.state === 'stare'){
+      // hold position, look at viewer
+      cat.face = 1;
+    }
+  }
+
+  function render(t){
+    // calm background (subtle gradient + stars)
+    ctx.clearRect(0,0,W,H);
+    // gradient-ish blocks (still soft)
+    ctx.fillStyle = '#0b0f14';
+    ctx.fillRect(0,0,W,H);
+    // faint top glow
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#2a3b5f';
+    ctx.fillRect(0,0,W, H*0.35);
+    ctx.globalAlpha = 1;
+
+    // stars as pixels
+    for(const s of stars){
+      ctx.globalAlpha = s.a;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(pix(s.x), pix(s.y), s.s*PX, s.s*PX);
+    }
+    ctx.globalAlpha = 1;
+
+    // flowers
+    for(const f of flowers){
+      if (f.state !== 'done') drawFlower(f, t);
+    }
+
+    // sparkles
+    for(const p of sparkle){
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = p.c;
+      ctx.fillRect(pix(p.x), pix(p.y), p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // dust
+    for(const p of dust){
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(pix(p.x), pix(p.y), p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+
+    // cat
+    drawCat(t);
+
+    // small text (pixel-ish)
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = 'white';
+    ctx.font = `12px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`;
+    ctx.fillText('터치하면 꽃이 생기고, 냥이가 순서대로 달려가요.', 12, 24);
+    ctx.restore();
+  }
+
+  function loop(t){
+    update(t);
+    render(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // input
+  function posFromEvent(e){
+    if (e.touches && e.touches[0]) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    return {x:e.clientX, y:e.clientY};
+  }
+  function onTap(e){
+    e.preventDefault?.();
+    const {x,y} = posFromEvent(e);
+    addFlower(x,y);
+  }
+  c.addEventListener('pointerdown', onTap, {passive:false});
+  c.addEventListener('touchstart', onTap, {passive:false});
+})();
+</script>
+</body>
+</html>
