@@ -11,18 +11,46 @@
     height: 100%;
     background: #ffffff;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 12px;
   }
-  img {
-    image-rendering: pixelated; /* 픽셀 느낌 유지 */
-    width: 180px;               /* 크기 조절 */
+  canvas {
+    image-rendering: pixelated;
+    border: 1px dashed #ccc;
   }
 </style>
 </head>
 <body>
 
-<img src="cat.png" alt="cat">
+<input type="file" accept="image/*" id="picker">
+
+<canvas id="c"></canvas>
+
+<script>
+const input = document.getElementById('picker');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+input.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const img = new Image();
+  img.onload = () => {
+    const scale = 3; // 픽셀 확대 (2~5 추천)
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+
+  img.src = URL.createObjectURL(file);
+});
+</script>
 
 </body>
 </html>
