@@ -16,109 +16,94 @@
   <style>
     :root{
       --bg:#0b0c0f;
+      --panel:rgba(255,255,255,.04);
       --line:rgba(255,255,255,.10);
       --accent:#ff2d2d;
       --txt:rgba(255,255,255,.92);
       --muted:rgba(255,255,255,.55);
       --radius:18px;
+
+      /* iOS safe-area */
+      --sat: env(safe-area-inset-top);
+      --sar: env(safe-area-inset-right);
+      --sab: env(safe-area-inset-bottom);
+      --sal: env(safe-area-inset-left);
     }
 
-    html,body{height:100%;}
-    html{
-      background: var(--bg);
-      overscroll-behavior:none;
-    }
-    body{
+    html,body{
+      height:100%;
+      width:100%;
       margin:0;
+      overflow:hidden;               /* 스크롤 차단 */
+      overscroll-behavior:none;      /* 바운스 차단 */
+      touch-action:manipulation;
+      background:radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%), var(--bg);
       color:var(--txt);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-
-      /* ✅ 화면 스크롤 방지 */
-      overflow:hidden;
-      position:fixed;
-      inset:0;
-      width:100%;
-      height:100%;
-      touch-action:manipulation;
-
-      background:
-        radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%),
-        var(--bg);
-
-      display:flex;
-      justify-content:center;
-      align-items:stretch;
-    }
-
-    /* ✅ Safe area 만큼 전체를 아래로 밀기 (상단 시계/노치 겹침 방지) */
-    .wrap{
-      width:min(520px, 96vw);
-      height:100%;
-      padding:
-        calc(env(safe-area-inset-top) + 14px)
-        12px
-        calc(env(safe-area-inset-bottom) + 14px);
-      padding-top: calc(constant(safe-area-inset-top) + 14px);
-      padding-bottom: calc(constant(safe-area-inset-bottom) + 14px);
-
-      box-sizing:border-box;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-
-      overflow:hidden;
       -webkit-user-select:none;
       -webkit-touch-callout:none;
+    }
+
+    body{
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+    }
+
+    .wrap{
+      width:min(520px, 96vw);
+      padding:
+        calc(12px + var(--sat))   /* 상단 시계/노치 피하기 */
+        calc(12px + var(--sar))
+        calc(18px + var(--sab))
+        calc(12px + var(--sal));
+      box-sizing:border-box;
     }
 
     .top{
       display:flex;
       align-items:center;
       justify-content:space-between;
+      margin:4px 2px 12px;
       gap:10px;
-      padding: 6px 2px 0;
-      flex:0 0 auto;
     }
 
     .brand{
-      display:flex; gap:10px; align-items:baseline;
+      display:flex;
+      gap:10px;
+      align-items:baseline;
       letter-spacing:.18em;
       min-width:0;
     }
-    .brand b{font-weight:800; flex:0 0 auto;}
+    .brand b{font-weight:800; white-space:nowrap;}
     .brand span{
       color:var(--muted);
-      font-weight:600;
+      font-weight:650;
       font-size:13px;
+      line-height:1.1;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-    }
-
-    .topRight{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex:0 0 auto;
+      max-width:52vw;
     }
 
     .pill{
-      display:flex; align-items:center; gap:10px;
+      display:flex;
+      align-items:center;
+      gap:8px;
       padding:10px 12px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.03);
       border-radius:999px;
       color:var(--muted);
       font-weight:800;
-      letter-spacing:.08em;
+      letter-spacing:.10em;
       font-size:12px;
       user-select:none;
-    }
-    .pillBtn{
-      cursor:pointer;
+      white-space:nowrap;
     }
     .dot{
-      width:10px;height:10px;border-radius:50%;
+      width:9px;height:9px;border-radius:50%;
       background:var(--accent);
       box-shadow:0 0 0 3px rgba(255,45,45,.15);
     }
@@ -128,76 +113,64 @@
       border:1px solid rgba(255,255,255,.10);
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       padding:14px;
-      flex:1 1 auto;
-      min-height:0;
-
-      display:flex;
-      flex-direction:column;
-      gap:12px;
+      position:relative;
     }
 
     .boardWrap{
       position:relative;
-      border-radius:18px;
-      overflow:hidden;
-      flex:1 1 auto;
-      min-height:0;
     }
 
     canvas{
       width:100%;
-      height:100%;
+      height:auto;
       display:block;
+      border-radius:18px;
       background:
         radial-gradient(900px 600px at 50% 30%, rgba(255,255,255,.06), transparent 60%),
         #0a0d16;
       border:1px solid rgba(255,255,255,.08);
-      border-radius:18px;
     }
 
-    /* ✅ 우측 상단 HUD(배경 투명, 글자만) */
+    /* HUD Overlay: 배경 완전 투명 + 더 작게 */
     .hudOverlay{
       position:absolute;
       top:10px;
       right:10px;
-      z-index:5;
-
-      padding:10px 12px;
-      border-radius:16px;
-      background:transparent;        /* 핵심 */
-      border:1px solid rgba(255,255,255,.10);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-
-      display:grid;
-      row-gap:6px;
-      min-width:170px;
-      pointer-events:none; /* 게임 조작 방해 X */
+      padding:0;                    /* 배경/박스감 제거 */
+      border:none;
+      background:transparent;
+      border-radius:0;
+      pointer-events:none;
+      text-align:right;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      font-weight:800;
+      opacity:.92;
+      max-width:46%;
     }
     .hudLine{
-      display:flex;
+      display:grid;
+      grid-template-columns:auto 1fr;
+      column-gap:10px;
       align-items:baseline;
-      justify-content:space-between;
-      gap:16px;
-      font-weight:900;
-      letter-spacing:.14em;
+      margin:6px 0;
     }
-    .k2{
-      color:rgba(255,255,255,.55);
-      font-size:12px;
+    .hudOverlay .k2{
+      color:rgba(255,255,255,.45);
+      font-size:12px;               /* 작게 */
       font-weight:900;
-      letter-spacing:.18em;
     }
-    .hudLine b{
-      font-size:20px;
-      letter-spacing:.02em;
-      color:rgba(255,255,255,.92);
+    .hudOverlay b{
+      color:rgba(255,255,255,.88);
+      font-size:16px;               /* 작게 */
+      font-weight:900;
+      letter-spacing:.06em;
+      justify-self:end;
+      min-width:22px;
     }
 
-    /* ✅ 하단 버튼(항상 보이게) */
-    .touchBar{
-      flex:0 0 auto;
-    }
+    /* Touch controls */
+    .touchBar{ margin-top:14px; }
     .touchRow{
       display:grid;
       gap:10px;
@@ -206,30 +179,33 @@
       grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
     }
     .tbtn{
-      height:62px;
+      height:64px;
       border-radius:16px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.04);
       color:var(--txt);
       font-size:18px;
       font-weight:900;
+      letter-spacing:.02em;
       -webkit-tap-highlight-color: transparent;
       user-select:none;
     }
     .tbtn:active{ transform:translateY(1px); }
     .tbtn.accent{
       border:1px solid rgba(255,45,45,.35);
-      background:rgba(255,45,45,.14);
-      color:rgba(255,255,255,.96);
-      letter-spacing:.04em;
+      background:rgba(255,45,45,.12);
+      color:rgba(255,255,255,.95);
     }
 
-    /* 작은 화면에서 버튼이 사라지지 않도록 최소 높이 보정 */
-    @media (max-height: 720px){
-      .tbtn{ height:56px; }
-      .stage{ padding:12px; }
-      .hudOverlay{ min-width:150px; }
-      .hudLine b{ font-size:18px; }
+    /* 작은 도움말(선택) */
+    .miniNote{
+      margin-top:10px;
+      color:rgba(255,255,255,.40);
+      font-weight:800;
+      font-size:11px;
+      letter-spacing:.10em;
+      text-align:center;
+      user-select:none;
     }
   </style>
 </head>
@@ -241,9 +217,10 @@
         <b>CAT</b>
         <span>TETRIS / MINIMAL GRID SYSTEM</span>
       </div>
-      <div class="topRight">
+
+      <div style="display:flex; gap:10px; align-items:center;">
         <div class="pill"><span class="dot"></span>RUN</div>
-        <button id="soundBtn" class="pill pillBtn" type="button" aria-label="toggle sound">SOUND OFF</button>
+        <button id="soundBtn" class="pill" style="cursor:pointer;">SOUND OFF</button>
       </div>
     </div>
 
@@ -251,6 +228,7 @@
       <div class="boardWrap">
         <canvas id="game" width="300" height="600"></canvas>
 
+        <!-- HUD overlay -->
         <div class="hudOverlay" aria-hidden="true">
           <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
           <div class="hudLine"><span class="k2">LEVEL</span><b id="level">1</b></div>
@@ -259,24 +237,133 @@
         </div>
       </div>
 
-      <!-- ✅ 버튼: 좌 / 아래1칸 / DROP / 회전 / 우 -->
+      <!-- Buttons: 좌 / 아래 / DROP / 회전 / 우 -->
       <div class="touchBar">
         <div class="touchRow five">
-          <button class="tbtn" data-act="left" type="button">←</button>
-          <button class="tbtn" data-act="down" type="button">↓</button>
-          <button class="tbtn accent" data-act="drop" type="button">DROP</button>
-          <button class="tbtn" data-act="cw" type="button">⟳</button>
-          <button class="tbtn" data-act="right" type="button">→</button>
+          <button class="tbtn" data-act="left">←</button>
+          <button class="tbtn" data-act="down">↓</button>
+          <button class="tbtn accent" data-act="drop">DROP</button>
+          <button class="tbtn" data-act="cw">⟳</button>
+          <button class="tbtn" data-act="right">→</button>
         </div>
+        <div class="miniNote">L / ↓ / DROP / ⟳ / R</div>
       </div>
     </div>
   </div>
 
 <script>
 (() => {
-  // =========================
-  // Canvas + Game State
-  // =========================
+  /* =========================
+     Audio (WebAudio, iOS-safe)
+     ========================= */
+  let audioCtx = null;
+  let soundOn = false;
+  let musicTimer = null;
+  let musicStep = 0;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  // 간단한 '테트리스풍' 반복 패턴(짧은 음 시퀀스) - 저작권 멜로디 그대로 복제하지 않음
+  const MUSIC_SEQ = [
+    // [freq, ms]
+    [440,160],[494,160],[523,160],[494,160],
+    [440,160],[392,160],[440,240],
+    [330,160],[349,160],[392,240],
+    [392,120],[440,120],[494,240],
+    [523,200],[494,200],[440,240],
+  ];
+
+  function beep({freq=440, dur=0.06, type="sine", gain=0.06, detune=0}){
+    if(!soundOn) return;
+    ensureAudio();
+
+    const t0 = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    if(detune) o.detune.setValueAtTime(detune, t0);
+
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.02);
+  }
+
+  function startMusic(){
+    if(!soundOn) return;
+    stopMusic();
+    musicStep = 0;
+    const tick = () => {
+      if(!soundOn) return;
+      const [f, ms] = MUSIC_SEQ[musicStep % MUSIC_SEQ.length];
+      // 살짝 흔들림(기계적 느낌 완화)
+      beep({freq:f, dur:Math.min(0.14, ms/1000*0.85), type:"triangle", gain:0.030, detune:(musicStep%2? -8: 8)});
+      musicStep++;
+      musicTimer = setTimeout(tick, ms);
+    };
+    tick();
+  }
+  function stopMusic(){
+    if(musicTimer){
+      clearTimeout(musicTimer);
+      musicTimer = null;
+    }
+  }
+
+  // 버튼 효과음(짧고 클릭감)
+  function sfxButton(){
+    beep({freq:260, dur:0.045, type:"square", gain:0.035});
+  }
+  // 회전용(약간 높게)
+  function sfxRotate(){
+    beep({freq:520, dur:0.055, type:"triangle", gain:0.030});
+  }
+  // DROP(강조)
+  function sfxDrop(){
+    beep({freq:140, dur:0.08, type:"sawtooth", gain:0.040});
+  }
+  // 라인 삭제(“소리도 한 번 변하고” → 클리어 개수에 따라 다른 음정)
+  function sfxLineClear(cleared){
+    const base = 520;
+    const f = base + (cleared-1) * 110;
+    beep({freq:f, dur:0.11, type:"sine", gain:0.05});
+    // 두 번째 짧은 음으로 변조 느낌
+    setTimeout(()=>beep({freq:f*1.25, dur:0.06, type:"sine", gain:0.035}), 60);
+  }
+
+  const soundBtn = document.getElementById("soundBtn");
+  function setSoundUI(){
+    soundBtn.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+  }
+  setSoundUI();
+
+  soundBtn.addEventListener("click", (e)=>{
+    e.preventDefault();
+    soundOn = !soundOn;
+    if(soundOn){
+      ensureAudio();
+      startMusic();
+      // 토글 사운드
+      beep({freq:330, dur:0.06, type:"triangle", gain:0.04});
+    } else {
+      stopMusic();
+    }
+    setSoundUI();
+  }, {passive:false});
+
+  /* =========================
+     Game
+     ========================= */
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
 
@@ -312,6 +399,14 @@
     combo: document.getElementById("combo"),
   };
 
+  // 라인 플래시(색 1번 변하고 사라지게)
+  const flash = {
+    rows: [],         // 삭제 예정 row index들
+    until: 0,         // performance.now() 기준
+    active: false,
+    ms: 120           // 플래시 지속
+  };
+
   function rnd(n){ return Math.floor(Math.random()*n); }
   function clone(m){ return m.map(r=>r.slice()); }
 
@@ -329,11 +424,8 @@
     ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
   }
 
-  function draw(){
-    ctx.clearRect(0,0,canvas.width, canvas.height);
-
-    // grid
-    ctx.globalAlpha = 0.12;
+  function drawGrid(){
+    ctx.globalAlpha = 0.14;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
     for(let x=0;x<=COLS;x++){
@@ -343,11 +435,31 @@
       ctx.beginPath(); ctx.moveTo(0, y*SIZE); ctx.lineTo(canvas.width, y*SIZE); ctx.stroke();
     }
     ctx.globalAlpha = 1;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+
+    drawGrid();
 
     // board
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         if(board[y][x]) drawCell(x,y,"rgba(255,255,255,.18)");
+      }
+    }
+
+    // line flash overlay (색 한 번 변함)
+    if(flash.active){
+      const now = performance.now();
+      const k = Math.min(1, (flash.until - now) / flash.ms);
+      // 남은 시간에 따라 밝기 변화(반짝임)
+      const a = 0.65 * (1 - k);
+      for(const ry of flash.rows){
+        for(let x=0;x<COLS;x++){
+          // 기존 블럭 위에 청백색 플래시
+          drawCell(x, ry, `rgba(220,245,255,${a})`);
+        }
       }
     }
 
@@ -387,40 +499,64 @@
     }
   }
 
-  function updateHud(){
+  // 플래시 후에 실제 삭제
+  function commitClearRows(rows){
+    // rows는 아래→위 정렬되어 있어도 OK (splice는 동일 인덱스 문제 있으니 내림차순 정렬)
+    const sorted = rows.slice().sort((a,b)=>b-a);
+    for(const y of sorted){
+      board.splice(y,1);
+      board.unshift(Array(COLS).fill(0));
+    }
+  }
+
+  function updateUI(){
     ui.score.textContent = state.score;
     ui.level.textContent = state.level;
     ui.lines.textContent = state.lines;
     ui.combo.textContent = state.combo;
   }
 
-  function clearLines(){
-    let cleared = 0;
-    for(let y=ROWS-1;y>=0;){
-      if(board[y].every(v=>v===1)){
-        board.splice(y,1);
-        board.unshift(Array(COLS).fill(0));
-        cleared++;
-      } else {
-        y--;
-      }
+  function clearLinesWithFlash(){
+    if(flash.active) return 0;
+
+    const full = [];
+    for(let y=ROWS-1; y>=0; y--){
+      if(board[y].every(v=>v===1)) full.push(y);
     }
-    if(cleared>0){
-      state.lines += cleared;
-      state.score += [0,100,300,500,800][cleared] * state.level;
-      state.combo += 1;
-
-      const newLevel = 1 + Math.floor(state.lines/10);
-      if(newLevel !== state.level){
-        state.level = newLevel;
-        state.dropMs = Math.max(120, 650 - (state.level-1)*50);
-      }
-
-      sfx.line(cleared);
-    } else {
+    if(full.length === 0) {
       state.combo = 0;
+      updateUI();
+      return 0;
     }
-    updateHud();
+
+    // 점수/레벨 먼저 계산(즉시 UI 반영)
+    const cleared = full.length;
+    state.lines += cleared;
+    state.score += [0,100,300,500,800][cleared] * state.level;
+    state.combo += 1;
+
+    const newLevel = 1 + Math.floor(state.lines/10);
+    if(newLevel !== state.level){
+      state.level = newLevel;
+      state.dropMs = Math.max(120, 650 - (state.level-1)*50);
+    }
+    updateUI();
+
+    // 플래시 시작 + 소리(“소리도 한 번 변하고”)
+    flash.rows = full;
+    flash.active = true;
+    flash.until = performance.now() + flash.ms;
+
+    sfxLineClear(cleared);
+
+    // 플래시 끝나면 실제 삭제
+    setTimeout(() => {
+      commitClearRows(full);
+      flash.active = false;
+      flash.rows = [];
+    }, flash.ms);
+
+    return cleared;
   }
 
   function softDrop(){
@@ -428,9 +564,10 @@
       piece.y++;
     } else {
       merge();
-      sfx.lock();
       if(state.gameOver) return;
-      clearLines();
+
+      clearLinesWithFlash();
+
       piece = spawnPiece();
       if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
     }
@@ -441,9 +578,10 @@
       piece.y++;
     }
     merge();
-    sfx.drop();
     if(state.gameOver) return;
-    clearLines();
+
+    clearLinesWithFlash();
+
     piece = spawnPiece();
     if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
   }
@@ -463,158 +601,47 @@
     const next = rotateCW(piece.shape);
     if(!collide(piece.x, piece.y, next)){
       piece.shape = next;
-      sfx.tap();
-      return;
+      return true;
     }
-    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; sfx.tap(); return; }
-    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; sfx.tap(); return; }
+    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return true; }
+    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return true; }
+    return false;
   }
 
   function moveLeft(){
-    if(!collide(piece.x-1, piece.y, piece.shape)){ piece.x--; sfx.tap(); }
+    if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--;
   }
   function moveRight(){
-    if(!collide(piece.x+1, piece.y, piece.shape)){ piece.x++; sfx.tap(); }
+    if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++;
   }
 
   function act(a){
     if(state.gameOver) return;
     if(state.paused) return;
-
-    if(a==="left") moveLeft();
-    else if(a==="right") moveRight();
-    else if(a==="down"){ softDrop(); sfx.tap(); }
-    else if(a==="drop") hardDrop();
-    else if(a==="cw") doRotateCW();
-  }
-
-  // =========================
-  // ✅ Sound (WebAudio, 자체 생성음)
-  // - 배경: 간단한 8bit 루프(테트리스 느낌)
-  // - 버튼/드롭/라인: 효과음
-  // =========================
-  const soundBtn = document.getElementById("soundBtn");
-  let audioCtx = null;
-  let master = null;
-  let bgInterval = null;
-  let soundOn = false;
-
-  function ensureAudio(){
-    if(audioCtx) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AC();
-    master = audioCtx.createGain();
-    master.gain.value = 0.18;
-    master.connect(audioCtx.destination);
-  }
-
-  function tone(freq, dur=0.06, type="square", gain=0.6){
-    if(!soundOn) return;
-    ensureAudio();
-    const t0 = audioCtx.currentTime;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, t0);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-    o.connect(g);
-    g.connect(master);
-    o.start(t0);
-    o.stop(t0 + dur + 0.02);
-  }
-
-  function noise(dur=0.08, gain=0.35){
-    if(!soundOn) return;
-    ensureAudio();
-    const t0 = audioCtx.currentTime;
-    const bufferSize = Math.floor(audioCtx.sampleRate * dur);
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for(let i=0;i<bufferSize;i++){
-      data[i] = (Math.random()*2-1) * (1 - i/bufferSize);
+    if(flash.active && (a==="drop" || a==="down")) {
+      // 플래시 중에는 아래 동작만 약간 제한(튐 방지)
+      // 좌/우/회전은 허용
     }
-    const src = audioCtx.createBufferSource();
-    src.buffer = buffer;
-    const g = audioCtx.createGain();
-    g.gain.setValueAtTime(gain, t0);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(g);
-    g.connect(master);
-    src.start(t0);
-    src.stop(t0 + dur);
-  }
 
-  const sfx = {
-    tap(){ tone(740, 0.04, "square", 0.22); },
-    drop(){ tone(220, 0.08, "square", 0.35); tone(110, 0.10, "square", 0.25); },
-    lock(){ tone(180, 0.05, "triangle", 0.20); },
-    line(cleared){
-      // 라인 수에 따라 살짝 상승하는 "띵" + 약한 노이즈
-      const base = cleared >= 4 ? 880 : cleared === 3 ? 784 : cleared === 2 ? 660 : 523;
-      tone(base, 0.10, "square", 0.35);
-      tone(base*1.25, 0.08, "square", 0.22);
-      noise(0.10, 0.10);
-    }
-  };
-
-  // 배경 루프(간단 8bit arpeggio)
-  function startBGM(){
-    if(!soundOn) return;
-    ensureAudio();
-    stopBGM();
-
-    const seq = [
-      659, 494, 523, 587, 523, 494, 440, 440,
-      523, 659, 587, 523, 494, 523, 587, 659,
-      523, 440, 440, 0
-    ];
-    let i = 0;
-    bgInterval = setInterval(() => {
-      if(!soundOn) return;
-      const f = seq[i % seq.length];
-      if(f>0) tone(f, 0.09, "square", 0.12);
-      i++;
-    }, 120);
-  }
-
-  function stopBGM(){
-    if(bgInterval){
-      clearInterval(bgInterval);
-      bgInterval = null;
+    if(a==="left"){ moveLeft(); sfxButton(); }
+    else if(a==="right"){ moveRight(); sfxButton(); }
+    else if(a==="down"){ softDrop(); sfxButton(); }
+    else if(a==="drop"){ hardDrop(); sfxDrop(); }
+    else if(a==="cw"){
+      const ok = doRotateCW();
+      if(ok) sfxRotate();
+      else sfxButton();
     }
   }
 
-  function setSound(on){
-    soundOn = on;
-    soundBtn.textContent = on ? "SOUND ON" : "SOUND OFF";
-    if(on){
-      ensureAudio();
-      audioCtx.resume?.();
-      startBGM();
-      sfx.tap();
-    }else{
-      stopBGM();
-    }
-  }
-
-  // iOS: 사용자 제스처에서만 오디오 시작 가능 → 버튼으로 토글
-  soundBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    setSound(!soundOn);
-  }, {passive:false});
-
-  // =========================
-  // Controls (touch + click)
-  // =========================
+  // Touch buttons: click + touchstart
   document.querySelectorAll(".tbtn").forEach(btn=>{
     const a = btn.dataset.act;
     btn.addEventListener("click", e => { e.preventDefault(); act(a); draw(); }, {passive:false});
     btn.addEventListener("touchstart", e => { e.preventDefault(); act(a); draw(); }, {passive:false});
   });
 
+  // Keyboard(옵션)
   window.addEventListener("keydown", (e)=>{
     if(e.key==="ArrowLeft") act("left");
     else if(e.key==="ArrowRight") act("right");
@@ -624,9 +651,7 @@
     draw();
   });
 
-  // =========================
-  // Loop
-  // =========================
+  // 메인 루프
   let last = performance.now();
   function loop(t){
     if(!state.paused && !state.gameOver){
@@ -639,7 +664,7 @@
     requestAnimationFrame(loop);
   }
 
-  updateHud();
+  updateUI();
   draw();
   requestAnimationFrame(loop);
 
@@ -647,6 +672,14 @@
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js");
   }
+
+  // iOS에서 첫 유저 제스처로 오디오 활성화 보조(버튼/게임 터치 시 자동 resume)
+  function primeAudio(){
+    if(!soundOn) return;
+    ensureAudio();
+  }
+  window.addEventListener("touchstart", primeAudio, {passive:true});
+  window.addEventListener("click", primeAudio, {passive:true});
 })();
 </script>
 </body>
