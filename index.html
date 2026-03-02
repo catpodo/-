@@ -1,461 +1,155 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>CAT TETRIS</title>
+<meta charset="utf-8"/>
+<meta name="viewport"
+content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 
-  <!-- PWA -->
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#0b0c0f" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="apple-touch-icon" href="./icon-192.png" />
+<title>CAT TETRIS</title>
 
-  <style>
-    :root{
-      --bg:#0b0c0f;
-      --panel:rgba(255,255,255,.04);
-      --line:rgba(255,255,255,.10);
-      --accent:#ff2d2d;
-      --txt:rgba(255,255,255,.92);
-      --muted:rgba(255,255,255,.55);
-      --radius:18px;
-    }
-    html,body{height:100%;}
-    body{
-      margin:0;
-      background:radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%), var(--bg);
-      color:var(--txt);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-    }
-    .wrap{
-      width:min(520px, 96vw);
-      padding:16px 12px 24px;
-    }
-    .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      margin:8px 2px 12px;
-    }
-    .brand{
-      display:flex; gap:10px; align-items:baseline;
-      letter-spacing:.18em;
-    }
-    .brand b{font-weight:800;}
-    .brand span{color:var(--muted); font-weight:600; font-size:13px;}
-    .pill{
-      display:flex; align-items:center; gap:10px;
-      padding:10px 12px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      border-radius:999px;
-      color:var(--muted);
-      font-weight:700;
-      letter-spacing:.08em;
-      font-size:12px;
-    }
-    .dot{
-      width:10px;height:10px;border-radius:50%;
-      background:var(--accent);
-      box-shadow:0 0 0 3px rgba(255,45,45,.15);
-    }
+<link rel="manifest" href="./manifest.json"/>
+<meta name="theme-color" content="#0b0c0f"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
 
-    .stage{
-      border-radius:24px;
-      border:1px solid rgba(255,255,255,.10);
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      padding:14px;
-    }
-    canvas{
-      width:100%;
-      height:auto;
-      display:block;
-      border-radius:18px;
-      background:
-        radial-gradient(900px 600px at 50% 30%, rgba(255,255,255,.06), transparent 60%),
-        #0a0d16;
-      border:1px solid rgba(255,255,255,.08);
-    }
-
-    /* Touch Controls */
-    .touchBar{ margin-top:14px; }
-    .touchRow{
-      display:grid;
-      gap:10px;
-      margin-top:10px;
-    }
-    /* 중요: 5개 버튼 줄 (좌 아래 DROP 회전 우) */
-  .touchRow.five{
-  grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
+<style>
+:root{
+  --bg:#0b0c0f;
+  --line:rgba(255,255,255,.10);
+  --accent:#ff2d2d;
+  --txt:rgba(255,255,255,.92);
+  --muted:rgba(255,255,255,.55);
 }
-    .tbtn{
-      height:64px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--txt);
-      font-size:18px;
-      font-weight:800;
-      letter-spacing:.02em;
-      -webkit-tap-highlight-color: transparent;
-      user-select:none;
-    }
-    .tbtn:active{ transform:translateY(1px); }
-    .tbtn.accent{
-      border:1px solid rgba(255,45,45,.35);
-      background:rgba(255,45,45,.12);
-      color:rgba(255,255,255,.95);
-    }
-    .tbtn.small{
-      height:56px;
-      font-size:14px;
-      font-weight:800;
-      letter-spacing:.08em;
-      color:rgba(255,255,255,.85);
-    }
 
-    .hud{
-      margin-top:14px;
-      border-radius:24px;
-      border:1px solid rgba(255,255,255,.10);
-      background:rgba(255,255,255,.03);
-      padding:14px;
-    }
-    .hudTop{
-      display:flex; align-items:center; justify-content:space-between;
-      margin-bottom:12px;
-    }
-    .hudTop .ttl{
-      letter-spacing:.16em;
-      font-weight:800;
-    }
-    .hudTop .sub{ color:var(--muted); font-weight:700; margin-left:10px; }
-    .grid2{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-    .card{
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.09);
-      background:rgba(0,0,0,.12);
-      padding:12px;
-      text-align:left;
-    }
-    .k{ color:var(--muted); font-weight:800; font-size:12px; letter-spacing:.16em; }
-    .v{ margin-top:6px; font-weight:900; font-size:22px; }
-  </style>
+html,body{
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  overscroll-behavior:none;
+  touch-action:manipulation;
+  background:#0b0c0f;
+  color:var(--txt);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+}
+
+.wrap{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  padding:16px 12px;
+  box-sizing:border-box;
+}
+
+.stage{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+.boardWrap{
+  position:relative;
+  flex:1;
+}
+
+canvas{
+  width:100%;
+  height:100%;
+  border-radius:18px;
+  background:#0a0d16;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+/* ===== HUD Overlay ===== */
+
+.hudOverlay{
+  position:absolute;
+  top:12px;
+  right:12px;
+  z-index:10;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.35);
+  backdrop-filter:blur(12px);
+  pointer-events:none;
+  min-width:130px;
+}
+
+.hudLine{
+  display:flex;
+  justify-content:space-between;
+  padding:3px 0;
+}
+
+.k2{
+  font-size:11px;
+  letter-spacing:.14em;
+  color:var(--muted);
+  font-weight:800;
+}
+
+.hudLine b{
+  font-size:16px;
+  font-weight:900;
+}
+
+/* ===== Touch Buttons ===== */
+
+.touchBar{
+  margin-top:14px;
+}
+
+.touchRow{
+  display:grid;
+  grid-template-columns:1fr 1fr 1.4fr 1fr 1fr;
+  gap:10px;
+}
+
+.tbtn{
+  height:64px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.05);
+  color:var(--txt);
+  font-size:18px;
+  font-weight:800;
+}
+
+.tbtn.accent{
+  background:rgba(255,45,45,.18);
+  border:1px solid rgba(255,45,45,.45);
+}
+</style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand">
-        <b>CAT</b>
-        <span>TETRIS / MINIMAL GRID SYSTEM</span>
-      </div>
-      <div class="pill"><span class="dot"></span>RUN</div>
-    </div>
 
-    <div class="stage">
-      <canvas id="game" width="300" height="600"></canvas>
+<div class="wrap">
 
-      <!-- ✅ 버튼: 좌  DROP  회전  우 -->
-      <div class="touchBar">
-        <div class="touchRow five">
+<div class="stage">
+
+<div class="boardWrap">
+<canvas id="game" width="300" height="600"></canvas>
+
+<div class="hudOverlay">
+  <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
+  <div class="hudLine"><span class="k2">LEVEL</span><b id="level">1</b></div>
+  <div class="hudLine"><span class="k2">LINES</span><b id="lines">0</b></div>
+  <div class="hudLine"><span class="k2">COMBO</span><b id="combo">0</b></div>
+</div>
+
+</div>
+
+<div class="touchBar">
+<div class="touchRow">
   <button class="tbtn" data-act="left">←</button>
   <button class="tbtn" data-act="down">↓</button>
   <button class="tbtn accent" data-act="drop">DROP</button>
   <button class="tbtn" data-act="cw">⟳</button>
   <button class="tbtn" data-act="right">→</button>
 </div>
-      </div>
-    </div>
+</div>
 
-    <div class="hud">
-      <div class="hudTop">
-        <div><span class="ttl">HUD</span> <span class="sub">SYSTEM</span></div>
-        <div class="pill" style="gap:8px;"><span class="dot" style="width:8px;height:8px;"></span>NORMAL</div>
-      </div>
-      <div class="grid2">
-        <div class="card"><div class="k">SCORE</div><div class="v" id="score">0</div></div>
-        <div class="card"><div class="k">LEVEL</div><div class="v" id="level">1</div></div>
-        <div class="card"><div class="k">LINES</div><div class="v" id="lines">0</div></div>
-        <div class="card"><div class="k">COMBO</div><div class="v" id="combo">0</div></div>
-      </div>
-    </div>
-  </div>
-
-<script>
-(() => {
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-
-  const COLS = 10, ROWS = 20;
-  const SIZE = canvas.width / COLS;
-
-  // 0=empty, 1=filled (단순 데모)
-  let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-
-  // tetromino set
-  const SHAPES = [
-    [[1,1,1,1]],                 // I
-    [[1,1],[1,1]],               // O
-    [[0,1,0],[1,1,1]],           // T
-    [[1,0,0],[1,1,1]],           // J
-    [[0,0,1],[1,1,1]],           // L
-    [[0,1,1],[1,1,0]],           // S
-    [[1,1,0],[0,1,1]],           // Z
-  ];
-
-  const state = {
-    score: 0,
-    level: 1,
-    lines: 0,
-    combo: 0,
-    dropMs: 650,
-    paused: false,
-    gameOver: false,
-  };
-
-  const ui = {
-    score: document.getElementById("score"),
-    level: document.getElementById("level"),
-    lines: document.getElementById("lines"),
-    combo: document.getElementById("combo"),
-  };
-
-  function rnd(n){ return Math.floor(Math.random()*n); }
-  function clone(m){ return m.map(r=>r.slice()); }
-
-  function spawnPiece(){
-    const shape = clone(SHAPES[rnd(SHAPES.length)]);
-    const x = Math.floor((COLS - shape[0].length)/2);
-    const y = 0;
-    return { shape, x, y };
-  }
-
-  let piece = spawnPiece();
-
-  function drawCell(x, y, fill){
-    ctx.fillStyle = fill;
-    ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,canvas.width, canvas.height);
-
-    // subtle grid
-    ctx.globalAlpha = 0.15;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1;
-    for(let x=0;x<=COLS;x++){
-      ctx.beginPath(); ctx.moveTo(x*SIZE, 0); ctx.lineTo(x*SIZE, canvas.height); ctx.stroke();
-    }
-    for(let y=0;y<=ROWS;y++){
-      ctx.beginPath(); ctx.moveTo(0, y*SIZE); ctx.lineTo(canvas.width, y*SIZE); ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-
-    // board
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
-        if(board[y][x]) drawCell(x,y,"rgba(255,255,255,.18)");
-      }
-    }
-
-    // piece
-    for(let dy=0;dy<piece.shape.length;dy++){
-      for(let dx=0;dx<piece.shape[dy].length;dx++){
-        if(piece.shape[dy][dx]){
-          drawCell(piece.x+dx, piece.y+dy, "rgba(140,200,255,.85)");
-        }
-      }
-    }
-  }
-
-  function collide(px, py, shape){
-    for(let dy=0;dy<shape.length;dy++){
-      for(let dx=0;dx<shape[dy].length;dx++){
-        if(!shape[dy][dx]) continue;
-        const x = px + dx;
-        const y = py + dy;
-        if(x < 0 || x >= COLS || y >= ROWS) return true;
-        if(y >= 0 && board[y][x]) return true;
-      }
-    }
-    return false;
-  }
-
-  function merge(){
-    for(let dy=0;dy<piece.shape.length;dy++){
-      for(let dx=0;dx<piece.shape[dy].length;dx++){
-        if(piece.shape[dy][dx]){
-          const y = piece.y+dy;
-          const x = piece.x+dx;
-          if(y < 0){ state.gameOver = true; return; }
-          board[y][x] = 1;
-        }
-      }
-    }
-  }
-
-  function clearLines(){
-    let cleared = 0;
-    for(let y=ROWS-1;y>=0;){
-      if(board[y].every(v=>v===1)){
-        board.splice(y,1);
-        board.unshift(Array(COLS).fill(0));
-        cleared++;
-      } else {
-        y--;
-      }
-    }
-    if(cleared>0){
-      state.lines += cleared;
-      state.score += [0,100,300,500,800][cleared] * state.level;
-      state.combo += 1;
-      // 간단 레벨업
-      const newLevel = 1 + Math.floor(state.lines/10);
-      if(newLevel !== state.level){
-        state.level = newLevel;
-        state.dropMs = Math.max(120, 650 - (state.level-1)*50);
-      }
-    } else {
-      state.combo = 0;
-    }
-    ui.score.textContent = state.score;
-    ui.level.textContent = state.level;
-    ui.lines.textContent = state.lines;
-    ui.combo.textContent = state.combo;
-  }
-
-  function softDrop(){
-    if(!collide(piece.x, piece.y+1, piece.shape)){
-      piece.y++;
-    } else {
-      merge();
-      if(state.gameOver) return;
-      clearLines();
-      piece = spawnPiece();
-      if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
-    }
-  }
-
-  function hardDrop(){
-    while(!collide(piece.x, piece.y+1, piece.shape)){
-      piece.y++;
-    }
-    merge();
-    if(state.gameOver) return;
-    clearLines();
-    piece = spawnPiece();
-    if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
-  }
-
-  function rotateCW(shape){
-    const h = shape.length, w = shape[0].length;
-    const out = Array.from({length:w}, ()=>Array(h).fill(0));
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        out[x][h-1-y] = shape[y][x];
-      }
-    }
-    return out;
-  }
-
-  function rotateCCW(shape){
-    // 3번 CW = CCW
-    let s = shape;
-    s = rotateCW(s); s = rotateCW(s); s = rotateCW(s);
-    return s;
-  }
-
-  function doRotateCW(){
-    const next = rotateCW(piece.shape);
-    if(!collide(piece.x, piece.y, next)){
-      piece.shape = next;
-      return;
-    }
-    // 간단 킥: 좌/우 한칸
-    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return; }
-    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return; }
-  }
-
-  function doRotateCCW(){
-    const next = rotateCCW(piece.shape);
-    if(!collide(piece.x, piece.y, next)){
-      piece.shape = next; return;
-    }
-    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return; }
-    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return; }
-  }
-
-  function moveLeft(){
-    if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--;
-  }
-  function moveRight(){
-    if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++;
-  }
-
-  // Touch buttons
-  function act(a){
-    if(state.gameOver) return;
-    if(a==="pause"){ state.paused = !state.paused; return; }
-    if(state.paused) return;
-
-    if(a==="left") moveLeft();
-    else if(a==="right") moveRight();
-    else if(a==="down") softDrop();
-    else if(a==="drop") hardDrop();
-    else if(a==="cw") doRotateCW();         // ✅ 회전 버튼 동작
-    else if(a==="ccw") doRotateCCW();
-    else if(a==="hold"){ /* 최소버전: 미구현 */ }
-  }
-
-  document.querySelectorAll(".tbtn").forEach(btn=>{
-    const a = btn.dataset.act;
-    // click + touchstart 둘 다 (iOS 반응성)
-    btn.addEventListener("click", e => { e.preventDefault(); act(a); draw(); }, {passive:false});
-    btn.addEventListener("touchstart", e => { e.preventDefault(); act(a); draw(); }, {passive:false});
-  });
-
-  // Keyboard(옵션)
-  window.addEventListener("keydown", (e)=>{
-    if(e.key==="ArrowLeft") act("left");
-    else if(e.key==="ArrowRight") act("right");
-    else if(e.key==="ArrowDown") act("down");
-    else if(e.key===" ") act("drop");
-    else if(e.key==="x" || e.key==="X") act("cw");
-    else if(e.key==="z" || e.key==="Z") act("ccw");
-    draw();
-  });
-
-  let last = performance.now();
-  function loop(t){
-    if(!state.paused && !state.gameOver){
-      if(t - last >= state.dropMs){
-        softDrop();
-        last = t;
-      }
-    }
-    draw();
-    requestAnimationFrame(loop);
-  }
-
-  draw();
-  requestAnimationFrame(loop);
-
-  // PWA service worker register
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("./sw.js");
-  }
-})();
-</script>
-</body>
-</html>
+</div>
+</div>
