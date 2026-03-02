@@ -1,155 +1,492 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport"
-content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <title>CAT TETRIS</title>
 
-<title>CAT TETRIS</title>
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0b0c0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
 
-<link rel="manifest" href="./manifest.json"/>
-<meta name="theme-color" content="#0b0c0f"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<link rel="apple-touch-icon" href="./icon-192.png"/>
+  <style>
+    :root{
+      --bg:#0b0c0f;
+      --line:rgba(255,255,255,.10);
+      --accent:#ff2d2d;
+      --txt:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.55);
+    }
 
-<style>
-:root{
-  --bg:#0b0c0f;
-  --line:rgba(255,255,255,.10);
-  --accent:#ff2d2d;
-  --txt:rgba(255,255,255,.92);
-  --muted:rgba(255,255,255,.55);
-}
+    /* ===== iOS/PWA scroll lock ===== */
+    html, body{
+      margin:0;
+      height:100%;
+      overflow:hidden;
+      overscroll-behavior:none;
+      touch-action:manipulation;
+      background:
+        radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%),
+        var(--bg);
+      color:var(--txt);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
+    }
 
-html,body{
-  margin:0;
-  height:100%;
-  overflow:hidden;
-  overscroll-behavior:none;
-  touch-action:manipulation;
-  background:#0b0c0f;
-  color:var(--txt);
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-}
+    /* ===== layout ===== */
+    .wrap{
+      height:100%;
+      width:min(520px, 96vw);
+      margin:0 auto;
+      padding:16px 12px 18px;
+      box-sizing:border-box;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
 
-.wrap{
-  height:100%;
-  display:flex;
-  flex-direction:column;
-  padding:16px 12px;
-  box-sizing:border-box;
-}
+    .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:2px 2px 0;
+    }
+    .brand{
+      display:flex; gap:10px; align-items:baseline;
+      letter-spacing:.18em;
+      line-height:1;
+    }
+    .brand b{font-weight:900;}
+    .brand span{color:var(--muted); font-weight:700; font-size:12px;}
+    .pill{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      border-radius:999px;
+      color:var(--muted);
+      font-weight:800;
+      letter-spacing:.08em;
+      font-size:12px;
+      flex-shrink:0;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--accent);
+      box-shadow:0 0 0 3px rgba(255,45,45,.15);
+    }
 
-.stage{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
+    .stage{
+      flex:1;
+      border-radius:24px;
+      border:1px solid rgba(255,255,255,.10);
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:0; /* 중요: flex 내부 캔버스가 줄어들 수 있게 */
+    }
 
-.boardWrap{
-  position:relative;
-  flex:1;
-}
+    .boardWrap{
+      position:relative;
+      flex:1;
+      min-height:0;
+    }
 
-canvas{
-  width:100%;
-  height:100%;
-  border-radius:18px;
-  background:#0a0d16;
-  border:1px solid rgba(255,255,255,.08);
-}
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      border-radius:18px;
+      background:
+        radial-gradient(900px 600px at 50% 30%, rgba(255,255,255,.06), transparent 60%),
+        #0a0d16;
+      border:1px solid rgba(255,255,255,.08);
+    }
 
-/* ===== HUD Overlay ===== */
+    /* ===== HUD overlay ===== */
+    .hudOverlay{
+      position:absolute;
+      top:10px;
+      right:10px;
+      z-index:10;
+      pointer-events:none;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.30);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      min-width:132px;
+    }
+    .hudLine{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      padding:3px 0;
+    }
+    .k2{
+      color:rgba(255,255,255,.55);
+      font-weight:800;
+      font-size:11px;
+      letter-spacing:.14em;
+    }
+    .hudLine b{
+      font-weight:900;
+      font-size:16px;
+      color:rgba(255,255,255,.92);
+    }
 
-.hudOverlay{
-  position:absolute;
-  top:12px;
-  right:12px;
-  z-index:10;
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(0,0,0,.35);
-  backdrop-filter:blur(12px);
-  pointer-events:none;
-  min-width:130px;
-}
+    /* ===== touch buttons ===== */
+    .touchRow{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
+      gap:10px;
+    }
+    .tbtn{
+      height:64px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--txt);
+      font-size:18px;
+      font-weight:900;
+      -webkit-tap-highlight-color: transparent;
+      user-select:none;
+    }
+    .tbtn:active{ transform:translateY(1px); }
+    .tbtn.accent{
+      border:1px solid rgba(255,45,45,.40);
+      background:rgba(255,45,45,.14);
+    }
 
-.hudLine{
-  display:flex;
-  justify-content:space-between;
-  padding:3px 0;
-}
-
-.k2{
-  font-size:11px;
-  letter-spacing:.14em;
-  color:var(--muted);
-  font-weight:800;
-}
-
-.hudLine b{
-  font-size:16px;
-  font-weight:900;
-}
-
-/* ===== Touch Buttons ===== */
-
-.touchBar{
-  margin-top:14px;
-}
-
-.touchRow{
-  display:grid;
-  grid-template-columns:1fr 1fr 1.4fr 1fr 1fr;
-  gap:10px;
-}
-
-.tbtn{
-  height:64px;
-  border-radius:16px;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.05);
-  color:var(--txt);
-  font-size:18px;
-  font-weight:800;
-}
-
-.tbtn.accent{
-  background:rgba(255,45,45,.18);
-  border:1px solid rgba(255,45,45,.45);
-}
-</style>
+    /* 작은 화면에서 버튼 높이 살짝 줄임 */
+    @media (max-height: 740px){
+      .tbtn{ height:58px; }
+      .wrap{ padding-bottom:14px; }
+    }
+  </style>
 </head>
 
 <body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <b>CAT</b>
+        <span>TETRIS / MINIMAL GRID SYSTEM</span>
+      </div>
+      <div class="pill"><span class="dot"></span>RUN</div>
+    </div>
 
-<div class="wrap">
+    <div class="stage">
+      <div class="boardWrap">
+        <canvas id="game"></canvas>
 
-<div class="stage">
+        <div class="hudOverlay">
+          <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
+          <div class="hudLine"><span class="k2">LEVEL</span><b id="level">1</b></div>
+          <div class="hudLine"><span class="k2">LINES</span><b id="lines">0</b></div>
+          <div class="hudLine"><span class="k2">COMBO</span><b id="combo">0</b></div>
+        </div>
+      </div>
 
-<div class="boardWrap">
-<canvas id="game" width="300" height="600"></canvas>
+      <div class="touchRow">
+        <button class="tbtn" data-act="left">←</button>
+        <button class="tbtn" data-act="down">↓</button>
+        <button class="tbtn accent" data-act="drop">DROP</button>
+        <button class="tbtn" data-act="cw">⟳</button>
+        <button class="tbtn" data-act="right">→</button>
+      </div>
+    </div>
+  </div>
 
-<div class="hudOverlay">
-  <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
-  <div class="hudLine"><span class="k2">LEVEL</span><b id="level">1</b></div>
-  <div class="hudLine"><span class="k2">LINES</span><b id="lines">0</b></div>
-  <div class="hudLine"><span class="k2">COMBO</span><b id="combo">0</b></div>
-</div>
+<script>
+(() => {
+  // ===== hard scroll lock for iOS PWA (extra safety) =====
+  document.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+  }, { passive:false });
 
-</div>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d", { alpha: true });
 
-<div class="touchBar">
-<div class="touchRow">
-  <button class="tbtn" data-act="left">←</button>
-  <button class="tbtn" data-act="down">↓</button>
-  <button class="tbtn accent" data-act="drop">DROP</button>
-  <button class="tbtn" data-act="cw">⟳</button>
-  <button class="tbtn" data-act="right">→</button>
-</div>
-</div>
+  const COLS = 10, ROWS = 20;
 
-</div>
-</div>
+  function fitCanvas(){
+    // 화면에 맞춰 "정수 셀" 크기로 맞춤 (선명)
+    const rect = canvas.getBoundingClientRect();
+    const cell = Math.floor(Math.min(rect.width / COLS, rect.height / ROWS));
+    const w = cell * COLS;
+    const h = cell * ROWS;
+    canvas.width = w;
+    canvas.height = h;
+    SIZE = cell;
+  }
+
+  let SIZE = 30;
+  window.addEventListener("resize", () => { fitCanvas(); draw(); }, { passive:true });
+
+  // board
+  let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+  // shapes
+  const SHAPES = [
+    [[1,1,1,1]],                 // I
+    [[1,1],[1,1]],               // O
+    [[0,1,0],[1,1,1]],           // T
+    [[1,0,0],[1,1,1]],           // J
+    [[0,0,1],[1,1,1]],           // L
+    [[0,1,1],[1,1,0]],           // S
+    [[1,1,0],[0,1,1]],           // Z
+  ];
+
+  const state = {
+    score: 0,
+    level: 1,
+    lines: 0,
+    combo: 0,
+    dropMs: 650,
+    paused: false,
+    gameOver: false,
+  };
+
+  const ui = {
+    score: document.getElementById("score"),
+    level: document.getElementById("level"),
+    lines: document.getElementById("lines"),
+    combo: document.getElementById("combo"),
+  };
+
+  function rnd(n){ return Math.floor(Math.random()*n); }
+  function clone(m){ return m.map(r => r.slice()); }
+
+  function spawnPiece(){
+    const shape = clone(SHAPES[rnd(SHAPES.length)]);
+    const x = Math.floor((COLS - shape[0].length)/2);
+    const y = 0;
+    return { shape, x, y };
+  }
+
+  let piece = spawnPiece();
+
+  function drawCell(x, y, fill){
+    ctx.fillStyle = fill;
+    ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+
+    // grid
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+    for(let x=0;x<=COLS;x++){
+      ctx.beginPath(); ctx.moveTo(x*SIZE, 0); ctx.lineTo(x*SIZE, canvas.height); ctx.stroke();
+    }
+    for(let y=0;y<=ROWS;y++){
+      ctx.beginPath(); ctx.moveTo(0, y*SIZE); ctx.lineTo(canvas.width, y*SIZE); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // board
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(board[y][x]) drawCell(x,y,"rgba(255,255,255,.18)");
+      }
+    }
+
+    // piece
+    for(let dy=0;dy<piece.shape.length;dy++){
+      for(let dx=0;dx<piece.shape[dy].length;dx++){
+        if(piece.shape[dy][dx]){
+          drawCell(piece.x+dx, piece.y+dy, "rgba(140,200,255,.85)");
+        }
+      }
+    }
+
+    if(state.gameOver){
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "rgba(0,0,0,.55)";
+      ctx.fillRect(0, canvas.height*0.35, canvas.width, canvas.height*0.18);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(255,255,255,.92)";
+      ctx.font = `900 ${Math.max(16, Math.floor(canvas.width*0.07))}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.fillText("GAME OVER", canvas.width/2, canvas.height*0.45);
+      ctx.font = `800 ${Math.max(12, Math.floor(canvas.width*0.045))}px system-ui`;
+      ctx.fillText("Tap DROP to restart", canvas.width/2, canvas.height*0.52);
+    }
+  }
+
+  function collide(px, py, shape){
+    for(let dy=0;dy<shape.length;dy++){
+      for(let dx=0;dx<shape[dy].length;dx++){
+        if(!shape[dy][dx]) continue;
+        const x = px + dx;
+        const y = py + dy;
+        if(x < 0 || x >= COLS || y >= ROWS) return true;
+        if(y >= 0 && board[y][x]) return true;
+      }
+    }
+    return false;
+  }
+
+  function merge(){
+    for(let dy=0;dy<piece.shape.length;dy++){
+      for(let dx=0;dx<piece.shape[dy].length;dx++){
+        if(piece.shape[dy][dx]){
+          const y = piece.y+dy;
+          const x = piece.x+dx;
+          if(y < 0){ state.gameOver = true; return; }
+          board[y][x] = 1;
+        }
+      }
+    }
+  }
+
+  function clearLines(){
+    let cleared = 0;
+    for(let y=ROWS-1;y>=0;){
+      if(board[y].every(v=>v===1)){
+        board.splice(y,1);
+        board.unshift(Array(COLS).fill(0));
+        cleared++;
+      } else y--;
+    }
+
+    if(cleared>0){
+      state.lines += cleared;
+      state.score += [0,100,300,500,800][cleared] * state.level;
+      state.combo += 1;
+
+      const newLevel = 1 + Math.floor(state.lines/10);
+      if(newLevel !== state.level){
+        state.level = newLevel;
+        state.dropMs = Math.max(120, 650 - (state.level-1)*50);
+      }
+    } else {
+      state.combo = 0;
+    }
+
+    ui.score.textContent = state.score;
+    ui.level.textContent = state.level;
+    ui.lines.textContent = state.lines;
+    ui.combo.textContent = state.combo;
+  }
+
+  function softDrop(){
+    if(!collide(piece.x, piece.y+1, piece.shape)){
+      piece.y++;
+    } else {
+      merge();
+      if(state.gameOver) return;
+      clearLines();
+      piece = spawnPiece();
+      if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
+    }
+  }
+
+  function hardDrop(){
+    while(!collide(piece.x, piece.y+1, piece.shape)) piece.y++;
+    merge();
+    if(state.gameOver) return;
+    clearLines();
+    piece = spawnPiece();
+    if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
+  }
+
+  function rotateCW(shape){
+    const h = shape.length, w = shape[0].length;
+    const out = Array.from({length:w}, ()=>Array(h).fill(0));
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        out[x][h-1-y] = shape[y][x];
+      }
+    }
+    return out;
+  }
+
+  function doRotateCW(){
+    const next = rotateCW(piece.shape);
+    if(!collide(piece.x, piece.y, next)){ piece.shape = next; return; }
+    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return; }
+    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return; }
+  }
+
+  function moveLeft(){ if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--; }
+  function moveRight(){ if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++; }
+
+  function resetGame(){
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    state.score = 0; state.level = 1; state.lines = 0; state.combo = 0;
+    state.dropMs = 650; state.paused = false; state.gameOver = false;
+    ui.score.textContent = 0;
+    ui.level.textContent = 1;
+    ui.lines.textContent = 0;
+    ui.combo.textContent = 0;
+    piece = spawnPiece();
+  }
+
+  function act(a){
+    if(state.gameOver){
+      if(a === "drop"){ resetGame(); }
+      return;
+    }
+    if(state.paused) return;
+
+    if(a==="left") moveLeft();
+    else if(a==="right") moveRight();
+    else if(a==="down") softDrop();
+    else if(a==="drop") hardDrop();
+    else if(a==="cw") doRotateCW();
+  }
+
+  // Touch buttons
+  document.querySelectorAll(".tbtn").forEach(btn=>{
+    const a = btn.dataset.act;
+    btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); act(a); draw(); }, {passive:false});
+    btn.addEventListener("click", (e)=>{ e.preventDefault(); act(a); draw(); }, {passive:false});
+  });
+
+  // Keyboard (옵션)
+  window.addEventListener("keydown", (e)=>{
+    if(e.key==="ArrowLeft") act("left");
+    else if(e.key==="ArrowRight") act("right");
+    else if(e.key==="ArrowDown") act("down");
+    else if(e.key===" ") act("drop");
+    else if(e.key==="x" || e.key==="X") act("cw");
+    draw();
+  });
+
+  // loop
+  let last = performance.now();
+  function loop(t){
+    if(!state.paused && !state.gameOver){
+      if(t - last >= state.dropMs){
+        softDrop();
+        last = t;
+      }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // init
+  fitCanvas();
+  draw();
+  requestAnimationFrame(loop);
+
+  // PWA service worker register
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("./sw.js");
+  }
+})();
+</script>
+</body>
+</html>
