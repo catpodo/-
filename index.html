@@ -1,686 +1,340 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport"
-        content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <title>CAT TETRIS</title>
+<meta charset="utf-8" />
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>CAT TETRIS</title>
 
-  <!-- PWA -->
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#0b0c0f" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="apple-touch-icon" href="./icon-192.png" />
+<meta name="theme-color" content="#0b0c0f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <style>
-    :root{
-      --bg:#0b0c0f;
-      --panel:rgba(255,255,255,.04);
-      --line:rgba(255,255,255,.10);
-      --accent:#ff2d2d;
-      --txt:rgba(255,255,255,.92);
-      --muted:rgba(255,255,255,.55);
-      --radius:18px;
+<style>
+:root{
+  --bg:#0b0c0f;
+  --line:rgba(255,255,255,.12);
+  --txt:rgba(255,255,255,.9);
+  --muted:rgba(255,255,255,.45);
+  --accent:#ff2d2d;
+}
 
-      /* iOS safe-area */
-      --sat: env(safe-area-inset-top);
-      --sar: env(safe-area-inset-right);
-      --sab: env(safe-area-inset-bottom);
-      --sal: env(safe-area-inset-left);
-    }
+html,body{
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  background:radial-gradient(1000px 600px at 50% -10%, rgba(255,255,255,.08), transparent 60%), var(--bg);
+  font-family:-apple-system, BlinkMacSystemFont, sans-serif;
+  color:var(--txt);
+}
 
-    html,body{
-      height:100%;
-      width:100%;
-      margin:0;
-      overflow:hidden;               /* 스크롤 차단 */
-      overscroll-behavior:none;      /* 바운스 차단 */
-      touch-action:manipulation;
-      background:radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%), var(--bg);
-      color:var(--txt);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      -webkit-user-select:none;
-      -webkit-touch-callout:none;
-    }
+body{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+}
 
-    body{
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-    }
+.wrap{
+  width:min(520px, 96vw);
+  padding:
+    calc(env(safe-area-inset-top) + 12px)
+    12px
+    calc(env(safe-area-inset-bottom) + 16px);
+  box-sizing:border-box;
+}
 
-    .wrap{
-      width:min(520px, 96vw);
-      padding:
-        calc(12px + var(--sat))   /* 상단 시계/노치 피하기 */
-        calc(12px + var(--sar))
-        calc(18px + var(--sab))
-        calc(12px + var(--sal));
-      box-sizing:border-box;
-    }
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
 
-    .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      margin:4px 2px 12px;
-      gap:10px;
-    }
+.brand{
+  letter-spacing:.18em;
+  font-weight:800;
+}
 
-    .brand{
-      display:flex;
-      gap:10px;
-      align-items:baseline;
-      letter-spacing:.18em;
-      min-width:0;
-    }
-    .brand b{font-weight:800; white-space:nowrap;}
-    .brand span{
-      color:var(--muted);
-      font-weight:650;
-      font-size:13px;
-      line-height:1.1;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:52vw;
-    }
+.pill{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.04);
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.12em;
+  cursor:pointer;
+}
 
-    .pill{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:10px 12px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      border-radius:999px;
-      color:var(--muted);
-      font-weight:800;
-      letter-spacing:.10em;
-      font-size:12px;
-      user-select:none;
-      white-space:nowrap;
-    }
-    .dot{
-      width:9px;height:9px;border-radius:50%;
-      background:var(--accent);
-      box-shadow:0 0 0 3px rgba(255,45,45,.15);
-    }
+.stage{
+  position:relative;
+  border-radius:24px;
+  border:1px solid var(--line);
+  padding:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+}
 
-    .stage{
-      border-radius:24px;
-      border:1px solid rgba(255,255,255,.10);
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      padding:14px;
-      position:relative;
-    }
+canvas{
+  width:100%;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.08);
+  display:block;
+  background:#0a0d16;
+}
 
-    .boardWrap{
-      position:relative;
-    }
+.hud{
+  position:absolute;
+  top:16px;
+  right:20px;
+  text-align:right;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.18em;
+}
 
-    canvas{
-      width:100%;
-      height:auto;
-      display:block;
-      border-radius:18px;
-      background:
-        radial-gradient(900px 600px at 50% 30%, rgba(255,255,255,.06), transparent 60%),
-        #0a0d16;
-      border:1px solid rgba(255,255,255,.08);
-    }
+.hud b{
+  font-size:16px;
+  margin-left:10px;
+}
 
-    /* HUD Overlay: 배경 완전 투명 + 더 작게 */
-    .hudOverlay{
-      position:absolute;
-      top:10px;
-      right:10px;
-      padding:0;                    /* 배경/박스감 제거 */
-      border:none;
-      background:transparent;
-      border-radius:0;
-      pointer-events:none;
-      text-align:right;
-      letter-spacing:.16em;
-      text-transform:uppercase;
-      font-weight:800;
-      opacity:.92;
-      max-width:46%;
-    }
-    .hudLine{
-      display:grid;
-      grid-template-columns:auto 1fr;
-      column-gap:10px;
-      align-items:baseline;
-      margin:6px 0;
-    }
-    .hudOverlay .k2{
-      color:rgba(255,255,255,.45);
-      font-size:12px;               /* 작게 */
-      font-weight:900;
-    }
-    .hudOverlay b{
-      color:rgba(255,255,255,.88);
-      font-size:16px;               /* 작게 */
-      font-weight:900;
-      letter-spacing:.06em;
-      justify-self:end;
-      min-width:22px;
-    }
+.controls{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:1fr 1fr 1.4fr 1fr 1fr;
+  gap:10px;
+}
 
-    /* Touch controls */
-    .touchBar{ margin-top:14px; }
-    .touchRow{
-      display:grid;
-      gap:10px;
-    }
-    .touchRow.five{
-      grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
-    }
-    .tbtn{
-      height:64px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--txt);
-      font-size:18px;
-      font-weight:900;
-      letter-spacing:.02em;
-      -webkit-tap-highlight-color: transparent;
-      user-select:none;
-    }
-    .tbtn:active{ transform:translateY(1px); }
-    .tbtn.accent{
-      border:1px solid rgba(255,45,45,.35);
-      background:rgba(255,45,45,.12);
-      color:rgba(255,255,255,.95);
-    }
+.btn{
+  height:60px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.05);
+  font-size:18px;
+  font-weight:900;
+}
 
-    /* 작은 도움말(선택) */
-    .miniNote{
-      margin-top:10px;
-      color:rgba(255,255,255,.40);
-      font-weight:800;
-      font-size:11px;
-      letter-spacing:.10em;
-      text-align:center;
-      user-select:none;
-    }
-  </style>
+.btn.red{
+  background:rgba(255,45,45,.14);
+  border:1px solid rgba(255,45,45,.35);
+}
+</style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand">
-        <b>CAT</b>
-        <span>TETRIS / MINIMAL GRID SYSTEM</span>
-      </div>
+<div class="wrap">
 
-      <div style="display:flex; gap:10px; align-items:center;">
-        <div class="pill"><span class="dot"></span>RUN</div>
-        <button id="soundBtn" class="pill" style="cursor:pointer;">SOUND OFF</button>
-      </div>
-    </div>
+  <div class="top">
+    <div class="brand">CAT TETRIS</div>
+    <div id="soundBtn" class="pill">SOUND OFF</div>
+  </div>
 
-    <div class="stage">
-      <div class="boardWrap">
-        <canvas id="game" width="300" height="600"></canvas>
+  <div class="stage">
+    <canvas id="game" width="300" height="600"></canvas>
 
-        <!-- HUD overlay -->
-        <div class="hudOverlay" aria-hidden="true">
-          <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
-          <div class="hudLine"><span class="k2">LEVEL</span><b id="level">1</b></div>
-          <div class="hudLine"><span class="k2">LINES</span><b id="lines">0</b></div>
-          <div class="hudLine"><span class="k2">COMBO</span><b id="combo">0</b></div>
-        </div>
-      </div>
-
-      <!-- Buttons: 좌 / 아래 / DROP / 회전 / 우 -->
-      <div class="touchBar">
-        <div class="touchRow five">
-          <button class="tbtn" data-act="left">←</button>
-          <button class="tbtn" data-act="down">↓</button>
-          <button class="tbtn accent" data-act="drop">DROP</button>
-          <button class="tbtn" data-act="cw">⟳</button>
-          <button class="tbtn" data-act="right">→</button>
-        </div>
-        <div class="miniNote">L / ↓ / DROP / ⟳ / R</div>
-      </div>
+    <div class="hud">
+      SCORE <b id="score">0</b><br>
+      LEVEL <b id="level">1</b><br>
+      LINES <b id="lines">0</b>
     </div>
   </div>
 
+  <div class="controls">
+    <button class="btn" data-a="left">←</button>
+    <button class="btn" data-a="down">↓</button>
+    <button class="btn red" data-a="drop">DROP</button>
+    <button class="btn" data-a="rot">⟳</button>
+    <button class="btn" data-a="right">→</button>
+  </div>
+
+</div>
+
 <script>
-(() => {
-  /* =========================
-     Audio (WebAudio, iOS-safe)
-     ========================= */
-  let audioCtx = null;
-  let soundOn = false;
-  let musicTimer = null;
-  let musicStep = 0;
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-  function ensureAudio(){
-    if (!audioCtx){
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended") audioCtx.resume();
+const COLS=10, ROWS=20;
+const SIZE=canvas.width/COLS;
+
+let board=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+
+const SHAPES=[
+[[1,1,1,1]],
+[[1,1],[1,1]],
+[[0,1,0],[1,1,1]],
+[[1,0,0],[1,1,1]],
+[[0,0,1],[1,1,1]],
+[[0,1,1],[1,1,0]],
+[[1,1,0],[0,1,1]]
+];
+
+let piece=spawn();
+
+let score=0, lines=0, level=1;
+let dropMs=650;
+let last=performance.now();
+
+let flashRows=[];
+let flashUntil=0;
+
+function spawn(){
+  const s=JSON.parse(JSON.stringify(SHAPES[Math.floor(Math.random()*7)]));
+  return {shape:s,x:Math.floor((COLS-s[0].length)/2),y:0};
+}
+
+function drawCell(x,y,c){
+  ctx.fillStyle=c;
+  ctx.fillRect(x*SIZE,y*SIZE,SIZE-1,SIZE-1);
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // grid
+  ctx.globalAlpha=.12;
+  ctx.strokeStyle="#fff";
+  for(let x=0;x<=COLS;x++){
+    ctx.beginPath();ctx.moveTo(x*SIZE,0);ctx.lineTo(x*SIZE,canvas.height);ctx.stroke();
+  }
+  for(let y=0;y<=ROWS;y++){
+    ctx.beginPath();ctx.moveTo(0,y*SIZE);ctx.lineTo(canvas.width,y*SIZE);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // board
+  for(let y=0;y<ROWS;y++)
+    for(let x=0;x<COLS;x++)
+      if(board[y][x])
+        drawCell(x,y,"rgba(255,255,255,.18)");
+
+  // flash
+  if(performance.now()<flashUntil){
+    for(const r of flashRows)
+      for(let x=0;x<COLS;x++)
+        drawCell(x,r,"rgba(200,240,255,.7)");
   }
 
-  // 간단한 '테트리스풍' 반복 패턴(짧은 음 시퀀스) - 저작권 멜로디 그대로 복제하지 않음
-  const MUSIC_SEQ = [
-    // [freq, ms]
-    [440,160],[494,160],[523,160],[494,160],
-    [440,160],[392,160],[440,240],
-    [330,160],[349,160],[392,240],
-    [392,120],[440,120],[494,240],
-    [523,200],[494,200],[440,240],
-  ];
+  // piece
+  for(let dy=0;dy<piece.shape.length;dy++)
+    for(let dx=0;dx<piece.shape[dy].length;dx++)
+      if(piece.shape[dy][dx])
+        drawCell(piece.x+dx,piece.y+dy,"rgba(140,200,255,.9)");
+}
 
-  function beep({freq=440, dur=0.06, type="sine", gain=0.06, detune=0}){
-    if(!soundOn) return;
-    ensureAudio();
-
-    const t0 = audioCtx.currentTime;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-
-    o.type = type;
-    o.frequency.setValueAtTime(freq, t0);
-    if(detune) o.detune.setValueAtTime(detune, t0);
-
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-    o.connect(g).connect(audioCtx.destination);
-    o.start(t0);
-    o.stop(t0 + dur + 0.02);
-  }
-
-  function startMusic(){
-    if(!soundOn) return;
-    stopMusic();
-    musicStep = 0;
-    const tick = () => {
-      if(!soundOn) return;
-      const [f, ms] = MUSIC_SEQ[musicStep % MUSIC_SEQ.length];
-      // 살짝 흔들림(기계적 느낌 완화)
-      beep({freq:f, dur:Math.min(0.14, ms/1000*0.85), type:"triangle", gain:0.030, detune:(musicStep%2? -8: 8)});
-      musicStep++;
-      musicTimer = setTimeout(tick, ms);
-    };
-    tick();
-  }
-  function stopMusic(){
-    if(musicTimer){
-      clearTimeout(musicTimer);
-      musicTimer = null;
-    }
-  }
-
-  // 버튼 효과음(짧고 클릭감)
-  function sfxButton(){
-    beep({freq:260, dur:0.045, type:"square", gain:0.035});
-  }
-  // 회전용(약간 높게)
-  function sfxRotate(){
-    beep({freq:520, dur:0.055, type:"triangle", gain:0.030});
-  }
-  // DROP(강조)
-  function sfxDrop(){
-    beep({freq:140, dur:0.08, type:"sawtooth", gain:0.040});
-  }
-  // 라인 삭제(“소리도 한 번 변하고” → 클리어 개수에 따라 다른 음정)
-  function sfxLineClear(cleared){
-    const base = 520;
-    const f = base + (cleared-1) * 110;
-    beep({freq:f, dur:0.11, type:"sine", gain:0.05});
-    // 두 번째 짧은 음으로 변조 느낌
-    setTimeout(()=>beep({freq:f*1.25, dur:0.06, type:"sine", gain:0.035}), 60);
-  }
-
-  const soundBtn = document.getElementById("soundBtn");
-  function setSoundUI(){
-    soundBtn.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
-  }
-  setSoundUI();
-
-  soundBtn.addEventListener("click", (e)=>{
-    e.preventDefault();
-    soundOn = !soundOn;
-    if(soundOn){
-      ensureAudio();
-      startMusic();
-      // 토글 사운드
-      beep({freq:330, dur:0.06, type:"triangle", gain:0.04});
-    } else {
-      stopMusic();
-    }
-    setSoundUI();
-  }, {passive:false});
-
-  /* =========================
-     Game
-     ========================= */
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-
-  const COLS = 10, ROWS = 20;
-  const SIZE = canvas.width / COLS;
-
-  let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-
-  const SHAPES = [
-    [[1,1,1,1]],                 // I
-    [[1,1],[1,1]],               // O
-    [[0,1,0],[1,1,1]],           // T
-    [[1,0,0],[1,1,1]],           // J
-    [[0,0,1],[1,1,1]],           // L
-    [[0,1,1],[1,1,0]],           // S
-    [[1,1,0],[0,1,1]],           // Z
-  ];
-
-  const state = {
-    score: 0,
-    level: 1,
-    lines: 0,
-    combo: 0,
-    dropMs: 650,
-    paused: false,
-    gameOver: false,
-  };
-
-  const ui = {
-    score: document.getElementById("score"),
-    level: document.getElementById("level"),
-    lines: document.getElementById("lines"),
-    combo: document.getElementById("combo"),
-  };
-
-  // 라인 플래시(색 1번 변하고 사라지게)
-  const flash = {
-    rows: [],         // 삭제 예정 row index들
-    until: 0,         // performance.now() 기준
-    active: false,
-    ms: 120           // 플래시 지속
-  };
-
-  function rnd(n){ return Math.floor(Math.random()*n); }
-  function clone(m){ return m.map(r=>r.slice()); }
-
-  function spawnPiece(){
-    const shape = clone(SHAPES[rnd(SHAPES.length)]);
-    const x = Math.floor((COLS - shape[0].length)/2);
-    const y = 0;
-    return { shape, x, y };
-  }
-
-  let piece = spawnPiece();
-
-  function drawCell(x, y, fill){
-    ctx.fillStyle = fill;
-    ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
-  }
-
-  function drawGrid(){
-    ctx.globalAlpha = 0.14;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1;
-    for(let x=0;x<=COLS;x++){
-      ctx.beginPath(); ctx.moveTo(x*SIZE, 0); ctx.lineTo(x*SIZE, canvas.height); ctx.stroke();
-    }
-    for(let y=0;y<=ROWS;y++){
-      ctx.beginPath(); ctx.moveTo(0, y*SIZE); ctx.lineTo(canvas.width, y*SIZE); ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,canvas.width, canvas.height);
-
-    drawGrid();
-
-    // board
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
-        if(board[y][x]) drawCell(x,y,"rgba(255,255,255,.18)");
+function collide(px,py,shape){
+  for(let y=0;y<shape.length;y++)
+    for(let x=0;x<shape[y].length;x++)
+      if(shape[y][x]){
+        let nx=px+x, ny=py+y;
+        if(nx<0||nx>=COLS||ny>=ROWS||board[ny]?.[nx]) return true;
       }
-    }
+  return false;
+}
 
-    // line flash overlay (색 한 번 변함)
-    if(flash.active){
-      const now = performance.now();
-      const k = Math.min(1, (flash.until - now) / flash.ms);
-      // 남은 시간에 따라 밝기 변화(반짝임)
-      const a = 0.65 * (1 - k);
-      for(const ry of flash.rows){
-        for(let x=0;x<COLS;x++){
-          // 기존 블럭 위에 청백색 플래시
-          drawCell(x, ry, `rgba(220,245,255,${a})`);
-        }
-      }
-    }
+function merge(){
+  for(let y=0;y<piece.shape.length;y++)
+    for(let x=0;x<piece.shape[y].length;x++)
+      if(piece.shape[y][x])
+        board[piece.y+y][piece.x+x]=1;
+}
 
-    // piece
-    for(let dy=0;dy<piece.shape.length;dy++){
-      for(let dx=0;dx<piece.shape[dy].length;dx++){
-        if(piece.shape[dy][dx]){
-          drawCell(piece.x+dx, piece.y+dy, "rgba(140,200,255,.85)");
-        }
-      }
-    }
-  }
+function clearLines(){
+  let full=[];
+  for(let y=0;y<ROWS;y++)
+    if(board[y].every(v=>v===1)) full.push(y);
 
-  function collide(px, py, shape){
-    for(let dy=0;dy<shape.length;dy++){
-      for(let dx=0;dx<shape[dy].length;dx++){
-        if(!shape[dy][dx]) continue;
-        const x = px + dx;
-        const y = py + dy;
-        if(x < 0 || x >= COLS || y >= ROWS) return true;
-        if(y >= 0 && board[y][x]) return true;
-      }
-    }
-    return false;
-  }
+  if(!full.length) return;
 
-  function merge(){
-    for(let dy=0;dy<piece.shape.length;dy++){
-      for(let dx=0;dx<piece.shape[dy].length;dx++){
-        if(piece.shape[dy][dx]){
-          const y = piece.y+dy;
-          const x = piece.x+dx;
-          if(y < 0){ state.gameOver = true; return; }
-          board[y][x] = 1;
-        }
-      }
-    }
-  }
+  flashRows=full;
+  flashUntil=performance.now()+120;
+  playLine(full.length);
 
-  // 플래시 후에 실제 삭제
-  function commitClearRows(rows){
-    // rows는 아래→위 정렬되어 있어도 OK (splice는 동일 인덱스 문제 있으니 내림차순 정렬)
-    const sorted = rows.slice().sort((a,b)=>b-a);
-    for(const y of sorted){
+  setTimeout(()=>{
+    full.sort((a,b)=>b-a).forEach(y=>{
       board.splice(y,1);
       board.unshift(Array(COLS).fill(0));
-    }
-  }
+    });
+  },120);
 
-  function updateUI(){
-    ui.score.textContent = state.score;
-    ui.level.textContent = state.level;
-    ui.lines.textContent = state.lines;
-    ui.combo.textContent = state.combo;
-  }
+  score+=full.length*100;
+  lines+=full.length;
+  document.getElementById("score").textContent=score;
+  document.getElementById("lines").textContent=lines;
+}
 
-  function clearLinesWithFlash(){
-    if(flash.active) return 0;
-
-    const full = [];
-    for(let y=ROWS-1; y>=0; y--){
-      if(board[y].every(v=>v===1)) full.push(y);
-    }
-    if(full.length === 0) {
-      state.combo = 0;
-      updateUI();
-      return 0;
-    }
-
-    // 점수/레벨 먼저 계산(즉시 UI 반영)
-    const cleared = full.length;
-    state.lines += cleared;
-    state.score += [0,100,300,500,800][cleared] * state.level;
-    state.combo += 1;
-
-    const newLevel = 1 + Math.floor(state.lines/10);
-    if(newLevel !== state.level){
-      state.level = newLevel;
-      state.dropMs = Math.max(120, 650 - (state.level-1)*50);
-    }
-    updateUI();
-
-    // 플래시 시작 + 소리(“소리도 한 번 변하고”)
-    flash.rows = full;
-    flash.active = true;
-    flash.until = performance.now() + flash.ms;
-
-    sfxLineClear(cleared);
-
-    // 플래시 끝나면 실제 삭제
-    setTimeout(() => {
-      commitClearRows(full);
-      flash.active = false;
-      flash.rows = [];
-    }, flash.ms);
-
-    return cleared;
-  }
-
-  function softDrop(){
-    if(!collide(piece.x, piece.y+1, piece.shape)){
-      piece.y++;
-    } else {
-      merge();
-      if(state.gameOver) return;
-
-      clearLinesWithFlash();
-
-      piece = spawnPiece();
-      if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
-    }
-  }
-
-  function hardDrop(){
-    while(!collide(piece.x, piece.y+1, piece.shape)){
-      piece.y++;
-    }
+function drop(){
+  if(!collide(piece.x,piece.y+1,piece.shape)) piece.y++;
+  else{
     merge();
-    if(state.gameOver) return;
-
-    clearLinesWithFlash();
-
-    piece = spawnPiece();
-    if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
+    clearLines();
+    piece=spawn();
   }
+}
 
-  function rotateCW(shape){
-    const h = shape.length, w = shape[0].length;
-    const out = Array.from({length:w}, ()=>Array(h).fill(0));
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        out[x][h-1-y] = shape[y][x];
-      }
-    }
-    return out;
+function hardDrop(){
+  while(!collide(piece.x,piece.y+1,piece.shape)) piece.y++;
+  merge();
+  clearLines();
+  piece=spawn();
+}
+
+function rotate(){
+  const s=piece.shape;
+  const r=s[0].map((_,i)=>s.map(row=>row[i]).reverse());
+  if(!collide(piece.x,piece.y,r)) piece.shape=r;
+}
+
+function loop(t){
+  if(t-last>dropMs){
+    drop();
+    last=t;
   }
-
-  function doRotateCW(){
-    const next = rotateCW(piece.shape);
-    if(!collide(piece.x, piece.y, next)){
-      piece.shape = next;
-      return true;
-    }
-    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return true; }
-    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return true; }
-    return false;
-  }
-
-  function moveLeft(){
-    if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--;
-  }
-  function moveRight(){
-    if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++;
-  }
-
-  function act(a){
-    if(state.gameOver) return;
-    if(state.paused) return;
-    if(flash.active && (a==="drop" || a==="down")) {
-      // 플래시 중에는 아래 동작만 약간 제한(튐 방지)
-      // 좌/우/회전은 허용
-    }
-
-    if(a==="left"){ moveLeft(); sfxButton(); }
-    else if(a==="right"){ moveRight(); sfxButton(); }
-    else if(a==="down"){ softDrop(); sfxButton(); }
-    else if(a==="drop"){ hardDrop(); sfxDrop(); }
-    else if(a==="cw"){
-      const ok = doRotateCW();
-      if(ok) sfxRotate();
-      else sfxButton();
-    }
-  }
-
-  // Touch buttons: click + touchstart
-  document.querySelectorAll(".tbtn").forEach(btn=>{
-    const a = btn.dataset.act;
-    btn.addEventListener("click", e => { e.preventDefault(); act(a); draw(); }, {passive:false});
-    btn.addEventListener("touchstart", e => { e.preventDefault(); act(a); draw(); }, {passive:false});
-  });
-
-  // Keyboard(옵션)
-  window.addEventListener("keydown", (e)=>{
-    if(e.key==="ArrowLeft") act("left");
-    else if(e.key==="ArrowRight") act("right");
-    else if(e.key==="ArrowDown") act("down");
-    else if(e.key===" ") act("drop");
-    else if(e.key==="x" || e.key==="X") act("cw");
-    draw();
-  });
-
-  // 메인 루프
-  let last = performance.now();
-  function loop(t){
-    if(!state.paused && !state.gameOver){
-      if(t - last >= state.dropMs){
-        softDrop();
-        last = t;
-      }
-    }
-    draw();
-    requestAnimationFrame(loop);
-  }
-
-  updateUI();
   draw();
   requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 
-  // PWA SW
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("./sw.js");
+/* ==== Controls ==== */
+document.querySelectorAll(".btn").forEach(b=>{
+  b.onclick=()=>{
+    const a=b.dataset.a;
+    playClick();
+    if(a==="left"&&!collide(piece.x-1,piece.y,piece.shape)) piece.x--;
+    if(a==="right"&&!collide(piece.x+1,piece.y,piece.shape)) piece.x++;
+    if(a==="down") drop();
+    if(a==="drop") hardDrop();
+    if(a==="rot") rotate();
   }
+});
 
-  // iOS에서 첫 유저 제스처로 오디오 활성화 보조(버튼/게임 터치 시 자동 resume)
-  function primeAudio(){
-    if(!soundOn) return;
-    ensureAudio();
-  }
-  window.addEventListener("touchstart", primeAudio, {passive:true});
-  window.addEventListener("click", primeAudio, {passive:true});
-})();
+/* ==== Sound ==== */
+let audioCtx=null, soundOn=false;
+
+function ensureAudio(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+}
+
+function tone(f,d=0.1){
+  if(!soundOn) return;
+  ensureAudio();
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.type="triangle";
+  o.frequency.value=f;
+  g.gain.value=.05;
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime+d);
+}
+
+function playClick(){ tone(300,0.05); }
+function playLine(n){ tone(500+n*120,0.15); }
+
+document.getElementById("soundBtn").onclick=()=>{
+  soundOn=!soundOn;
+  document.getElementById("soundBtn").textContent=soundOn?"SOUND ON":"SOUND OFF";
+  if(soundOn) tone(440,0.1);
+};
 </script>
 </body>
 </html>
