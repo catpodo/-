@@ -21,47 +21,46 @@
       --muted:rgba(255,255,255,.55);
     }
 
-    /* ===== iOS/PWA scroll lock ===== */
     html, body{
-      margin:0;
       height:100%;
       overflow:hidden;
+      position:fixed;
+      width:100%;
       overscroll-behavior:none;
       touch-action:manipulation;
-      background:
-        radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%),
-        var(--bg);
+    }
+    body{
+      margin:0;
+      background:radial-gradient(1200px 800px at 50% -10%, rgba(255,255,255,.08), transparent 60%), var(--bg);
       color:var(--txt);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
       -webkit-user-select:none;
       -webkit-touch-callout:none;
     }
 
-    /* ===== layout ===== */
     .wrap{
-      height:100%;
       width:min(520px, 96vw);
-      margin:0 auto;
-      padding:16px 12px 18px;
-      box-sizing:border-box;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
+      padding:16px 12px 24px;
+      overflow:hidden;
     }
 
     .top{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding:2px 2px 0;
+      margin:8px 2px 12px;
     }
     .brand{
       display:flex; gap:10px; align-items:baseline;
       letter-spacing:.18em;
-      line-height:1;
     }
-    .brand b{font-weight:900;}
-    .brand span{color:var(--muted); font-weight:700; font-size:12px;}
+    .brand b{font-weight:800;}
+    .brand span{color:var(--muted); font-weight:600; font-size:13px;}
+
+    .pills{display:flex; gap:10px; align-items:center;}
     .pill{
       display:flex; align-items:center; gap:10px;
       padding:10px 12px;
@@ -72,8 +71,13 @@
       font-weight:800;
       letter-spacing:.08em;
       font-size:12px;
-      flex-shrink:0;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent;
     }
+    .pillBtn{
+      cursor:pointer;
+    }
+    .pillBtn:active{ transform:translateY(1px); }
     .dot{
       width:10px;height:10px;border-radius:50%;
       background:var(--accent);
@@ -81,26 +85,19 @@
     }
 
     .stage{
-      flex:1;
       border-radius:24px;
       border:1px solid rgba(255,255,255,.10);
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       padding:14px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-      min-height:0; /* 중요: flex 내부 캔버스가 줄어들 수 있게 */
     }
 
     .boardWrap{
       position:relative;
-      flex:1;
-      min-height:0;
     }
 
     canvas{
       width:100%;
-      height:100%;
+      height:auto;
       display:block;
       border-radius:18px;
       background:
@@ -109,43 +106,48 @@
       border:1px solid rgba(255,255,255,.08);
     }
 
-    /* ===== HUD overlay ===== */
-.hudOverlay{
-  position:absolute;
-  top:14px;
-  right:16px;
-  z-index:10;
-  pointer-events:none;
-  padding:0;
-  background:none;
-  border:none;
-  backdrop-filter:none;
-}
+    /* HUD Overlay: 텍스트만 */
+    .hudOverlay{
+      position:absolute;
+      top:14px;
+      right:16px;
+      z-index:10;
+      pointer-events:none;
+      padding:0;
+      background:none;
+      border:none;
+      backdrop-filter:none;
     }
     .hudLine{
       display:flex;
       justify-content:space-between;
-      gap:12px;
-      padding:3px 0;
+      gap:14px;
+      margin:7px 0;
+      min-width:140px;
     }
     .k2{
-      color:rgba(255,255,255,.55);
-      font-weight:800;
+      color:rgba(255,255,255,.65);
+      font-weight:900;
       font-size:11px;
-      letter-spacing:.14em;
+      letter-spacing:.16em;
+      text-shadow:0 2px 6px rgba(0,0,0,.6);
     }
     .hudLine b{
-      font-weight:900;
+      font-weight:950;
       font-size:16px;
-      color:rgba(255,255,255,.92);
+      color:rgba(255,255,255,.95);
+      text-shadow:0 2px 8px rgba(0,0,0,.7);
     }
 
-    /* ===== touch buttons ===== */
+    /* Touch Controls */
+    .touchBar{ margin-top:14px; }
     .touchRow{
       display:grid;
-      grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr;
       gap:10px;
+      margin-top:10px;
+      grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr; /* 좌 아래 DROP 회전 우 */
     }
+
     .tbtn{
       height:64px;
       border-radius:16px;
@@ -154,19 +156,15 @@
       color:var(--txt);
       font-size:18px;
       font-weight:900;
+      letter-spacing:.02em;
       -webkit-tap-highlight-color: transparent;
       user-select:none;
     }
     .tbtn:active{ transform:translateY(1px); }
     .tbtn.accent{
-      border:1px solid rgba(255,45,45,.40);
-      background:rgba(255,45,45,.14);
-    }
-
-    /* 작은 화면에서 버튼 높이 살짝 줄임 */
-    @media (max-height: 740px){
-      .tbtn{ height:58px; }
-      .wrap{ padding-bottom:14px; }
+      border:1px solid rgba(255,45,45,.35);
+      background:rgba(255,45,45,.12);
+      color:rgba(255,255,255,.95);
     }
   </style>
 </head>
@@ -178,12 +176,16 @@
         <b>CAT</b>
         <span>TETRIS / MINIMAL GRID SYSTEM</span>
       </div>
-      <div class="pill"><span class="dot"></span>RUN</div>
+
+      <div class="pills">
+        <div class="pill"><span class="dot"></span>RUN</div>
+        <button id="soundBtn" class="pill pillBtn" type="button">SOUND OFF</button>
+      </div>
     </div>
 
     <div class="stage">
       <div class="boardWrap">
-        <canvas id="game"></canvas>
+        <canvas id="game" width="300" height="600"></canvas>
 
         <div class="hudOverlay">
           <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
@@ -193,46 +195,202 @@
         </div>
       </div>
 
-      <div class="touchRow">
-        <button class="tbtn" data-act="left">←</button>
-        <button class="tbtn" data-act="down">↓</button>
-        <button class="tbtn accent" data-act="drop">DROP</button>
-        <button class="tbtn" data-act="cw">⟳</button>
-        <button class="tbtn" data-act="right">→</button>
+      <div class="touchBar">
+        <div class="touchRow">
+          <button class="tbtn" data-act="left">←</button>
+          <button class="tbtn" data-act="down">↓</button>
+          <button class="tbtn accent" data-act="drop">DROP</button>
+          <button class="tbtn" data-act="cw">⟳</button>
+          <button class="tbtn" data-act="right">→</button>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
 (() => {
-  // ===== hard scroll lock for iOS PWA (extra safety) =====
-  document.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-  }, { passive:false });
+  // =========================
+  // AUDIO (iOS-friendly)
+  // =========================
+  let audioCtx = null;
+  let master = null;
+  let bgmTimer = null;
+  let bgmStep = 0;
 
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d", { alpha: true });
+  let soundOn = (localStorage.getItem("cat_tetris_sound") === "1");
 
-  const COLS = 10, ROWS = 20;
+  const soundBtn = document.getElementById("soundBtn");
+  function paintSoundBtn(){
+    soundBtn.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
+    soundBtn.style.color = soundOn ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.55)";
+    soundBtn.style.borderColor = soundOn ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.10)";
+  }
+  paintSoundBtn();
 
-  function fitCanvas(){
-    // 화면에 맞춰 "정수 셀" 크기로 맞춤 (선명)
-    const rect = canvas.getBoundingClientRect();
-    const cell = Math.floor(Math.min(rect.width / COLS, rect.height / ROWS));
-    const w = cell * COLS;
-    const h = cell * ROWS;
-    canvas.width = w;
-    canvas.height = h;
-    SIZE = cell;
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = audioCtx.createGain();
+    master.gain.value = soundOn ? 0.55 : 0.0;
+    master.connect(audioCtx.destination);
+
+    // iOS에서 resume 필요
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    if (soundOn) startBGM();
   }
 
-  let SIZE = 30;
-  window.addEventListener("resize", () => { fitCanvas(); draw(); }, { passive:true });
+  function setMaster(on){
+    ensureAudio();
+    master.gain.setTargetAtTime(on ? 0.55 : 0.0, audioCtx.currentTime, 0.02);
+  }
 
-  // board
+  // 간단 8비트 루프(오리지널)
+  // 숫자는 MIDI note. (C4=60)
+  const BGM = [
+    // 16-step x 4 bars (짧은 루프)
+    64, 64, 67, 69, 67, 64, 62, 62,
+    64, 64, 67, 69, 71, 69, 67, 64,
+
+    62, 62, 64, 67, 64, 62, 60, 60,
+    62, 62, 64, 67, 69, 67, 64, 62,
+
+    64, 64, 67, 69, 67, 64, 62, 62,
+    64, 64, 67, 69, 71, 69, 67, 64,
+
+    71, 69, 67, 64, 67, 64, 62, 60,
+    62, 64, 67, 69, 67, 64, 62, 60,
+  ];
+
+  function midiToHz(m){ return 440 * Math.pow(2, (m - 69) / 12); }
+
+  function beep({hz=440, type="square", dur=0.06, gain=0.18, at=0, slideTo=null}){
+    if(!soundOn) return;
+    ensureAudio();
+
+    const t0 = audioCtx.currentTime + at;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(hz, t0);
+
+    if (slideTo){
+      osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), t0 + dur);
+    }
+
+    // envelope
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    osc.connect(g);
+    g.connect(master);
+
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  }
+
+  function startBGM(){
+    if(!soundOn) return;
+    ensureAudio();
+    stopBGM();
+
+    const bpm = 132;
+    const stepMs = (60000 / bpm) / 2; // 8th note
+
+    bgmStep = 0;
+    bgmTimer = setInterval(() => {
+      if(!soundOn || !audioCtx) return;
+
+      const note = BGM[bgmStep % BGM.length];
+      const hz = midiToHz(note);
+
+      // melody
+      beep({ hz, type:"square", dur:0.08, gain:0.08 });
+
+      // subtle bass every 2 steps
+      if ((bgmStep % 4) === 0){
+        beep({ hz: hz/2, type:"triangle", dur:0.10, gain:0.05, at:0.00 });
+      }
+
+      bgmStep++;
+    }, stepMs);
+  }
+
+  function stopBGM(){
+    if (bgmTimer){
+      clearInterval(bgmTimer);
+      bgmTimer = null;
+    }
+  }
+
+  function sfx(action){
+    // 버튼 누를 때 효과음 (액션별로 약간 다르게)
+    if(!soundOn) return;
+
+    if(action==="left" || action==="right"){
+      beep({ hz: 520, type:"square", dur:0.035, gain:0.10 });
+    } else if(action==="down"){
+      beep({ hz: 380, type:"square", dur:0.03, gain:0.08 });
+    } else if(action==="cw"){
+      beep({ hz: 740, type:"square", dur:0.05, gain:0.10, slideTo:520 });
+    } else if(action==="drop"){
+      // 드롭은 '툭' 떨어지는 느낌
+      beep({ hz: 180, type:"triangle", dur:0.09, gain:0.14, slideTo:90 });
+      beep({ hz: 240, type:"square", dur:0.04, gain:0.06, at:0.01 });
+    }
+  }
+
+  function sfxLineClear(lines){
+    if(!soundOn) return;
+    // 라인 수에 따라 더 화려하게
+    const base = 660;
+    const seq = (lines >= 4)
+      ? [base, base*1.26, base*1.50, base*2.0]
+      : (lines === 3)
+        ? [base, base*1.26, base*1.50]
+        : (lines === 2)
+          ? [base, base*1.26]
+          : [base];
+
+    seq.forEach((hz, i) => {
+      beep({ hz, type:"square", dur:0.07, gain:0.12, at: i*0.05 });
+    });
+  }
+
+  // SOUND 버튼
+  soundBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    ensureAudio();
+    soundOn = !soundOn;
+    localStorage.setItem("cat_tetris_sound", soundOn ? "1" : "0");
+    paintSoundBtn();
+    setMaster(soundOn);
+    if(soundOn) startBGM(); else stopBGM();
+  }, {passive:false});
+
+  // iOS: 첫 사용자 제스처에서 오디오 unlock
+  const unlock = () => {
+    ensureAudio();
+    window.removeEventListener("touchstart", unlock);
+    window.removeEventListener("mousedown", unlock);
+  };
+  window.addEventListener("touchstart", unlock, {passive:true});
+  window.addEventListener("mousedown", unlock, {passive:true});
+
+  // =========================
+  // GAME
+  // =========================
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  const COLS = 10, ROWS = 20;
+  const SIZE = canvas.width / COLS;
+
   let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 
-  // shapes
   const SHAPES = [
     [[1,1,1,1]],                 // I
     [[1,1],[1,1]],               // O
@@ -261,7 +419,7 @@
   };
 
   function rnd(n){ return Math.floor(Math.random()*n); }
-  function clone(m){ return m.map(r => r.slice()); }
+  function clone(m){ return m.map(r=>r.slice()); }
 
   function spawnPiece(){
     const shape = clone(SHAPES[rnd(SHAPES.length)]);
@@ -280,7 +438,6 @@
   function draw(){
     ctx.clearRect(0,0,canvas.width, canvas.height);
 
-    // grid
     ctx.globalAlpha = 0.15;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
@@ -292,33 +449,18 @@
     }
     ctx.globalAlpha = 1;
 
-    // board
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         if(board[y][x]) drawCell(x,y,"rgba(255,255,255,.18)");
       }
     }
 
-    // piece
     for(let dy=0;dy<piece.shape.length;dy++){
       for(let dx=0;dx<piece.shape[dy].length;dx++){
         if(piece.shape[dy][dx]){
           drawCell(piece.x+dx, piece.y+dy, "rgba(140,200,255,.85)");
         }
       }
-    }
-
-    if(state.gameOver){
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = "rgba(0,0,0,.55)";
-      ctx.fillRect(0, canvas.height*0.35, canvas.width, canvas.height*0.18);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "rgba(255,255,255,.92)";
-      ctx.font = `900 ${Math.max(16, Math.floor(canvas.width*0.07))}px system-ui`;
-      ctx.textAlign = "center";
-      ctx.fillText("GAME OVER", canvas.width/2, canvas.height*0.45);
-      ctx.font = `800 ${Math.max(12, Math.floor(canvas.width*0.045))}px system-ui`;
-      ctx.fillText("Tap DROP to restart", canvas.width/2, canvas.height*0.52);
     }
   }
 
@@ -355,10 +497,15 @@
         board.splice(y,1);
         board.unshift(Array(COLS).fill(0));
         cleared++;
-      } else y--;
+      } else {
+        y--;
+      }
     }
 
     if(cleared>0){
+      // ✅ 라인 삭제 효과음
+      sfxLineClear(cleared);
+
       state.lines += cleared;
       state.score += [0,100,300,500,800][cleared] * state.level;
       state.combo += 1;
@@ -391,7 +538,9 @@
   }
 
   function hardDrop(){
-    while(!collide(piece.x, piece.y+1, piece.shape)) piece.y++;
+    while(!collide(piece.x, piece.y+1, piece.shape)){
+      piece.y++;
+    }
     merge();
     if(state.gameOver) return;
     clearLines();
@@ -412,7 +561,10 @@
 
   function doRotateCW(){
     const next = rotateCW(piece.shape);
-    if(!collide(piece.x, piece.y, next)){ piece.shape = next; return; }
+    if(!collide(piece.x, piece.y, next)){
+      piece.shape = next;
+      return;
+    }
     if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return; }
     if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return; }
   }
@@ -420,23 +572,14 @@
   function moveLeft(){ if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--; }
   function moveRight(){ if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++; }
 
-  function resetGame(){
-    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-    state.score = 0; state.level = 1; state.lines = 0; state.combo = 0;
-    state.dropMs = 650; state.paused = false; state.gameOver = false;
-    ui.score.textContent = 0;
-    ui.level.textContent = 1;
-    ui.lines.textContent = 0;
-    ui.combo.textContent = 0;
-    piece = spawnPiece();
-  }
-
   function act(a){
-    if(state.gameOver){
-      if(a === "drop"){ resetGame(); }
-      return;
-    }
+    if(state.gameOver) return;
     if(state.paused) return;
+
+    // ✅ 버튼 효과음
+    if(a==="left" || a==="right" || a==="down" || a==="drop" || a==="cw"){
+      sfx(a);
+    }
 
     if(a==="left") moveLeft();
     else if(a==="right") moveRight();
@@ -445,14 +588,12 @@
     else if(a==="cw") doRotateCW();
   }
 
-  // Touch buttons
   document.querySelectorAll(".tbtn").forEach(btn=>{
     const a = btn.dataset.act;
-    btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); act(a); draw(); }, {passive:false});
-    btn.addEventListener("click", (e)=>{ e.preventDefault(); act(a); draw(); }, {passive:false});
+    btn.addEventListener("click", e => { e.preventDefault(); ensureAudio(); act(a); draw(); }, {passive:false});
+    btn.addEventListener("touchstart", e => { e.preventDefault(); ensureAudio(); act(a); draw(); }, {passive:false});
   });
 
-  // Keyboard (옵션)
   window.addEventListener("keydown", (e)=>{
     if(e.key==="ArrowLeft") act("left");
     else if(e.key==="ArrowRight") act("right");
@@ -462,7 +603,6 @@
     draw();
   });
 
-  // loop
   let last = performance.now();
   function loop(t){
     if(!state.paused && !state.gameOver){
@@ -476,13 +616,18 @@
   }
 
   // init
-  fitCanvas();
   draw();
   requestAnimationFrame(loop);
 
   // PWA service worker register
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js");
+  }
+
+  // 페이지 로드시 sound 상태 반영(오디오는 사용자 제스처 후 시작)
+  if (soundOn){
+    // 버튼 표시만 ON으로. 실제 재생은 첫 제스처(터치/클릭)에서 시작되게 함.
+    paintSoundBtn();
   }
 })();
 </script>
