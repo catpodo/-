@@ -471,30 +471,33 @@
     if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++;
   }
 
-  /* =========================
-     SPEEDY CHIPTUNE SOUND (iOS/PWA 안정형)
-     - setInterval 대신 WebAudio time scheduler 사용
+    /* =========================
+     FRENCH HOUSE-ish SOUND (Daft Punk vibe)
+     - iOS/PWA 안정형 scheduler
+     - SFX quieter
   ========================= */
   let audioCtx = null;
   let soundOn = false;
 
-  let musicGain = null;
-  let sfxGain = null;
+  let musicGain = null;   // 음악 마스터
+  let sfxGain = null;     // SFX 마스터
 
   // scheduler
   let musicTimer = null;
   let nextNoteTime = 0;
 
-  const BPM = 176;                 // 더 스피디
-  const STEP = 0.5;                // 8th note (0.5 beat)
+  const BPM = 124;                   // 프렌치 하우스 템포
   const secondsPerBeat = 60 / BPM;
+  const STEP = 0.25;                 // 16th note
   const stepSec = secondsPerBeat * STEP;
 
-  // lookahead scheduler (ms)
   const LOOKAHEAD_MS = 25;
-  const SCHEDULE_AHEAD_SEC = 0.12;
+  const SCHEDULE_AHEAD_SEC = 0.14;
 
-  const SCALE = [0,2,3,5,7,8,10]; // minor-ish
+  let stepIndex = 0;
+
+  // sidechain/pump envelope (음악에만 적용)
+  let pump = 0; // 0..1
 
   function ensureAudio(){
     if(!audioCtx){
@@ -504,12 +507,12 @@
 
     if(!musicGain){
       musicGain = audioCtx.createGain();
-      musicGain.gain.value = 0.14;          // ✅ 음악 볼륨 (필요시 0.18까지)
+      musicGain.gain.value = 0.18;       // ✅ 음악 마스터 (필요시 0.22까지)
       musicGain.connect(audioCtx.destination);
     }
     if(!sfxGain){
       sfxGain = audioCtx.createGain();
-      sfxGain.gain.value = 1.0;             // SFX는 개별 vol로 제어
+      sfxGain.gain.value = 0.35;         // ✅ SFX 마스터: 크게 줄임 (0.25~0.45 추천)
       sfxGain.connect(audioCtx.destination);
     }
   }
@@ -521,7 +524,7 @@
     o.frequency.setValueAtTime(freq, time);
 
     g.gain.setValueAtTime(0.0001, time);
-    g.gain.linearRampToValueAtTime(vol, time + 0.008);
+    g.gain.linearRampToValueAtTime(vol, time + 0.006);
     g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
 
     o.connect(g).connect(outGain);
@@ -543,83 +546,157 @@
     g.gain.setValueAtTime(vol, time);
     g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
 
+    // 약간의 하이패스 느낌(간단 구현: 노이즈를 짧게 + 낮은 vol)
     src.connect(g).connect(outGain);
     src.start(time);
     src.stop(time + dur + 0.01);
   }
 
-  // ===== SFX (즉시 재생) =====
-  function sfxBeep(freq, dur=0.07, type="square", vol=0.07){
+  // ---- sidechain-ish pump (kick 때마다 펌핑) ----
+  function applyPump(){
+    // kick 직후 pump=1, 이후 서서히 0으로 감쇠
+    pump *= 0.90;
+    // pump가 클수록 음악이 더 줄어드는 느낌
+    const target = 0.18 * (1 - 0.55 * pump); // 기본 * (1 - 0.55*pump)
+    if(musicGain){
+      musicGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+    }
+  }
+
+  // ===== SFX (조용하게) =====
+  function sfxBeep(freq, dur=0.05, type="square", vol=0.05){
     if(!soundOn) return;
     ensureAudio();
     const t = audioCtx.currentTime + 0.001;
     oscAt(t, freq, dur, type, vol, sfxGain);
   }
-  function sfxNoise(dur=0.03, vol=0.06){
+  function sfxNoise(dur=0.02, vol=0.03){
     if(!soundOn) return;
     ensureAudio();
     const t = audioCtx.currentTime + 0.001;
     noiseAt(t, dur, vol, sfxGain);
   }
 
-  function sfxTap(){ sfxBeep(520, 0.04, "square", 0.07); }
-  function sfxRotate(){ sfxBeep(760, 0.05, "square", 0.07); }
-  function sfxDrop(){ sfxBeep(220, 0.07, "sawtooth", 0.09); }
-  function sfxLock(){ sfxBeep(170, 0.05, "triangle", 0.07); }
-
+  function sfxTap(){ sfxBeep(520, 0.035, "square", 0.040); }
+  function sfxRotate(){ sfxBeep(760, 0.045, "square", 0.045); }
+  function sfxDrop(){ sfxBeep(220, 0.060, "sawtooth", 0.055); }
+  function sfxLock(){ sfxBeep(170, 0.045, "triangle", 0.040); }
   function sfxLineClear(n){
-    // 줄 수에 따라 '변조' 느낌(두 번)
-    const base = 620 + n*150;
-    sfxBeep(base, 0.09, "square", 0.10);
-    setTimeout(()=>sfxBeep(base*1.33, 0.08, "square", 0.09), 70);
-    setTimeout(()=>sfxNoise(0.03, 0.04), 40);
+    const base = 520 + n*120;
+    sfxBeep(base, 0.070, "square", 0.060);
+    setTimeout(()=>sfxBeep(base*1.26, 0.065, "square", 0.055), 70);
+    setTimeout(()=>sfxNoise(0.03, 0.03), 40);
   }
 
-  // ===== MUSIC scheduler =====
-  function scheduleStep(stepIndex, time){
-    // 하이햇(빠른 느낌)
-    if(stepIndex % 2 === 0){
-      noiseAt(time, 0.02, 0.06, musicGain);
+  // ===== MUSIC (French house-ish) =====
+  // 킥(4-on-the-floor) + 스네어/클랩(2,4) + 하이햇(8th/16th)
+  // + 짧은 리드/스탭 (필터 느낌)
+  function kickAt(time){
+    // 빠른 피치 다운 킥(808-ish)
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+
+    o.frequency.setValueAtTime(140, time);
+    o.frequency.exponentialRampToValueAtTime(55, time + 0.10);
+
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.linearRampToValueAtTime(0.55, time + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
+
+    o.connect(g).connect(musicGain);
+    o.start(time);
+    o.stop(time + 0.22);
+
+    // pump 트리거
+    pump = 1.0;
+  }
+
+  function clapAt(time){
+    // 노이즈 + 짧은 톤 = 클랩 느낌
+    noiseAt(time, 0.06, 0.10, musicGain);
+    oscAt(time, 220, 0.05, "triangle", 0.04, musicGain);
+  }
+
+  function hatAt(time, open=false){
+    noiseAt(time, open ? 0.06 : 0.02, open ? 0.06 : 0.045, musicGain);
+  }
+
+  function bassAt(time, semitone){
+    // 톱니 베이스 + 짧게
+    const base = 55; // A1
+    const f = base * Math.pow(2, semitone/12);
+    oscAt(time, f, 0.10, "sawtooth", 0.07, musicGain);
+  }
+
+  function leadAt(time, semitone){
+    // “필터 스탭” 같은 짧은 리드
+    const base = 220; // A3
+    const f = base * Math.pow(2, semitone/12);
+    oscAt(time, f, 0.07, "square", 0.05, musicGain);
+    oscAt(time+0.01, f*2, 0.05, "square", 0.02, musicGain); // 위 옥타브 살짝
+  }
+
+  // 진행(무작위 느낌 최소화, 반복되는 하우스 루프)
+  const bassProg = [0, 0, 3, 0, 5, 3, 0, 7]; // semitone steps from A
+  const leadNotes = [12, 15, 19, 17, 15, 14, 12, 10]; // 간단한 훅(유사 멜로디지만 특정곡 아님)
+
+  function scheduleStep(i, time){
+    const beat16 = i % 16;             // 0..15
+    const beat4 = i % 4;               // 0..3
+    const beat = (i * STEP) % 4;       // 0..4beat
+
+    // 4-on-the-floor kick: 매 4스텝(1beat)마다
+    if(beat16 % 4 === 0){
+      kickAt(time);
     }
 
-    const base = 196; // G3
-    // 베이스(4스텝마다)
-    if(stepIndex % 4 === 0){
-      const deg = Math.floor(stepIndex/4) % 4;
-      const root = [0,5,3,7][deg]; // 진행
-      const f = base * Math.pow(2, root/12);
-      oscAt(time, f, 0.11, "triangle", 0.08, musicGain);
+    // clap/snare: 2,4 박(beat=1,3) -> 16스텝 기준 4,12
+    if(beat16 === 4 || beat16 === 12){
+      clapAt(time);
     }
 
-    // 리드(짝수 스텝에서 가볍게)
-    const barPos = stepIndex % 16;
-    if([1,3,5,7,9,11,13,15].includes(barPos)){
-      const note = SCALE[Math.floor(stepIndex/2) % SCALE.length] + (barPos>7 ? 12 : 0);
-      const f = base * Math.pow(2, note/12);
-      oscAt(time, f, 0.08, "square", 0.07, musicGain);
+    // hats: 8th 기본(2스텝마다), 가끔 16th
+    if(beat16 % 2 === 1){
+      hatAt(time, false);
+    }
+    if(beat16 === 15){
+      hatAt(time, true); // 마디 끝 오픈햇
+    }
+
+    // bass: 매 박마다 살짝
+    if(beat16 % 4 === 0){
+      const idx = (Math.floor(i/4)) % bassProg.length;
+      bassAt(time + 0.01, bassProg[idx]);
+    }
+
+    // lead: 8th에 훅
+    if(beat16 % 2 === 0 && beat16 !== 0){
+      const idx = (Math.floor(i/2)) % leadNotes.length;
+      leadAt(time + 0.005, leadNotes[idx]);
     }
   }
 
   function scheduler(){
     if(!soundOn || !audioCtx) return;
-
-    // iOS에서 중간에 suspend 되는 경우 복구
     if(audioCtx.state === "suspended") audioCtx.resume();
 
+    // pump 업데이트
+    applyPump();
+
     while(nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_SEC){
-      scheduleStep(musicStep, nextNoteTime);
+      scheduleStep(stepIndex, nextNoteTime);
       nextNoteTime += stepSec;
-      musicStep++;
+      stepIndex++;
     }
   }
 
-  let musicStep = 0;
-
   function startMusic(){
     ensureAudio();
-    stopMusic();                 // 중복 방지
-    musicStep = 0;
-    nextNoteTime = audioCtx.currentTime + 0.02;
+    stopMusic();
+    stepIndex = 0;
+    nextNoteTime = audioCtx.currentTime + 0.03;
+    pump = 0;
     musicTimer = setInterval(scheduler, LOOKAHEAD_MS);
   }
 
@@ -637,8 +714,8 @@
 
     if(soundOn){
       ensureAudio();
-      // 시작 확인용 1음
-      sfxBeep(880, 0.06, "square", 0.09);
+      // 시작 확인음도 너무 크지 않게
+      sfxBeep(880, 0.05, "square", 0.05);
       startMusic();
     }else{
       stopMusic();
