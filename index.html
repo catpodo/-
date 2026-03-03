@@ -216,7 +216,7 @@
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
-        <div class="pill"><span class="dot"></span>RUN</div>
+        <div class="pill"><span class="dot"></span>RESET</div>
         <div id="soundBtn" class="pill">SOUND OFF</div>
       </div>
     </div>
@@ -470,6 +470,30 @@
   function moveRight(){
     if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++;
   }
+  
+  function resetGame(){
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  piece = spawnPiece();
+
+  state.score = 0;
+  state.level = 1;
+  state.lines = 0;
+  state.combo = 0;
+  state.dropMs = 520;
+  state.paused = false;
+  state.gameOver = false;
+
+  flashRows = [];
+  flashUntil = 0;
+
+  updateUI();
+  draw();
+}
+
+document.getElementById("resetBtn").addEventListener("click", (e)=>{
+  e.preventDefault();
+  resetGame();
+});
 
     /* =========================
      FRENCH HOUSE-ish SOUND (Daft Punk vibe)
@@ -725,6 +749,27 @@
   document.getElementById("soundBtn").addEventListener("click", (e)=>{
     e.preventDefault();
     toggleSound();
+    function pauseMusicIfBackground(){
+  stopMusic();
+}
+
+function resumeMusicIfForeground(){
+  if(soundOn){
+    ensureAudio();
+    startMusic();
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if(document.hidden) pauseMusicIfBackground();
+  else resumeMusicIfForeground();
+});
+
+// iOS Safari에서 더 확실하게 잡기
+window.addEventListener("pagehide", pauseMusicIfBackground);
+window.addEventListener("blur", pauseMusicIfBackground);
+window.addEventListener("pageshow", () => resumeMusicIfForeground());
+window.addEventListener("focus", () => resumeMusicIfForeground());
   });
   /* =========================
      INPUT
