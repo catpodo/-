@@ -75,7 +75,7 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width:60vw;
+      max-width:54vw;
     }
     .pill{
       display:flex; align-items:center; gap:10px;
@@ -91,6 +91,7 @@
       -webkit-tap-highlight-color:transparent;
       flex:0 0 auto;
       cursor:pointer;
+      white-space:nowrap;
     }
     .pill:active{ transform:translateY(1px); }
     .dot{
@@ -128,6 +129,32 @@
       -webkit-tap-highlight-color:transparent;
     }
 
+    /* NEXT preview (보드 상단 좌측) */
+    .nextOverlay{
+      position:absolute;
+      top:12px;
+      left:12px;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      pointer-events:none;
+      user-select:none;
+      opacity:.85;
+    }
+    .nextLabel{
+      font-weight:900;
+      letter-spacing:.18em;
+      color:rgba(255,255,255,.55);
+      font-size:11px;
+      margin-top:2px;
+    }
+    canvas#next{
+      width:72px;
+      height:72px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.02);
+    }
+
     .hudOverlay{
       position:absolute;
       top:14px;
@@ -140,7 +167,6 @@
       background:transparent;
       border:none;
       padding:0;
-      z-index:5;
     }
     .hudLine{
       display:flex;
@@ -158,60 +184,12 @@
       letter-spacing:.06em;
     }
 
-    /* ✅ GAME OVER OVERLAY */
-    .overlay{
-      position:absolute;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      background:rgba(0,0,0,.35);
-      z-index:10;
-      pointer-events:auto;
-    }
-    .overlay.show{ display:flex; }
-    .overlayCard{
-      width:min(340px, 86%);
-      border:1px solid rgba(255,255,255,.16);
-      background:rgba(10,13,22,.72);
-      backdrop-filter: blur(6px);
-      padding:18px 16px;
-      text-align:center;
-    }
-    .ovTitle{
-      font-weight:900;
-      letter-spacing:.22em;
-      font-size:16px;
-      margin:2px 0 10px;
-    }
-    .ovSub{
-      color:rgba(255,255,255,.70);
-      font-weight:800;
-      letter-spacing:.10em;
-      font-size:12px;
-      margin-bottom:14px;
-    }
-    .ovBtn{
-      width:100%;
-      height:52px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.14);
-      background:rgba(255,255,255,.06);
-      color:rgba(255,255,255,.92);
-      font-weight:900;
-      letter-spacing:.12em;
-      font-size:14px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .ovBtn:active{ transform:translateY(1px); }
-
     .touchBar{
       flex:0 0 auto;
       margin-top:12px;
       padding-bottom: env(safe-area-inset-bottom);
     }
     .touchRow{ display:grid; gap:10px; }
-    /* ✅ 버튼 순서: 좌 / 아래 / 드롭 / 우 / 회전 */
     .touchRow.five{ grid-template-columns: 1fr 1fr 1.4fr 1fr 1fr; }
 
     .tbtn{
@@ -233,7 +211,114 @@
       background:rgba(255,45,45,.12);
       color:rgba(255,255,255,.95);
     }
+
+    /* GAME OVER overlay */
+    .overlay{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+    }
+    .overlay.show{ display:flex; }
+    .panel{
+      width:min(360px, 88%);
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(10,12,18,.92);
+      padding:18px 16px;
+      border-radius:18px;
+      box-shadow:0 12px 40px rgba(0,0,0,.45);
+      text-align:center;
+    }
+    .panel h2{
+      margin:0 0 10px;
+      font-size:18px;
+      letter-spacing:.18em;
+      font-weight:900;
+    }
+    .panel p{
+      margin:0 0 14px;
+      color:rgba(255,255,255,.70);
+      font-weight:800;
+      letter-spacing:.08em;
+      font-size:12px;
+      line-height:1.5;
+    }
+    .panel .row{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .panel input{
+      width:min(240px, 100%);
+      height:42px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.04);
+      color:rgba(255,255,255,.92);
+      padding:0 12px;
+      outline:none;
+      font-weight:800;
+      letter-spacing:.06em;
+    }
+    .panel button{
+      height:42px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:rgba(255,255,255,.90);
+      padding:0 14px;
+      font-weight:900;
+      letter-spacing:.10em;
+      cursor:pointer;
+    }
+    .panel button.primary{
+      border:1px solid rgba(255,45,45,.35);
+      background:rgba(255,45,45,.14);
+    }
+
+    /* Ranking */
+    .rankBox{
+      margin-top:12px;
+      text-align:left;
+      border-top:1px solid rgba(255,255,255,.10);
+      padding-top:10px;
+      max-height:220px;
+      overflow:auto;
+    }
+    .rankTitle{
+      font-weight:900;
+      letter-spacing:.16em;
+      font-size:11px;
+      color:rgba(255,255,255,.60);
+      margin-bottom:8px;
+    }
+    .rankItem{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      padding:6px 0;
+      border-bottom:1px dashed rgba(255,255,255,.08);
+      font-weight:800;
+      letter-spacing:.06em;
+      font-size:12px;
+      color:rgba(255,255,255,.86);
+    }
+    .rankItem small{
+      color:rgba(255,255,255,.55);
+      font-weight:800;
+      letter-spacing:.04em;
+    }
   </style>
+
+  <!-- Firebase (Firestore) compat CDN -->
+  <!-- 공식 문서 예시 경로: firebase-app-compat / firebase-firestore-compat  [oai_citation:1‡Firebase](https://firebase.google.com/docs/firestore/quickstart) -->
+  <script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore-compat.js"></script>
 </head>
 
 <body>
@@ -246,13 +331,19 @@
 
       <div style="display:flex; gap:10px; align-items:center;">
         <div id="resetBtn" class="pill"><span class="dot"></span>RESET</div>
-        <div id="soundBtn" class="pill">SOUND OFF</div>
+        <div id="musicBtn" class="pill">MUSIC OFF</div>
+        <div id="sfxBtn" class="pill">SFX ON</div>
       </div>
     </div>
 
     <div class="stage">
       <div class="boardWrap">
         <canvas id="game" width="300" height="600"></canvas>
+
+        <div class="nextOverlay">
+          <div class="nextLabel">NEXT</div>
+          <canvas id="next" width="72" height="72"></canvas>
+        </div>
 
         <div class="hudOverlay">
           <div class="hudLine"><span class="k2">SCORE</span><b id="score">0</b></div>
@@ -261,18 +352,33 @@
           <div class="hudLine"><span class="k2">COMBO</span><b id="combo">0</b></div>
         </div>
 
-        <!-- ✅ GAME OVER UI -->
-        <div id="gameOverOverlay" class="overlay" aria-hidden="true">
-          <div class="overlayCard">
-            <div class="ovTitle">GAME OVER</div>
-            <div class="ovSub">RETRY?</div>
-            <button id="retryBtn" class="ovBtn">RETRY</button>
+        <!-- Game Over overlay -->
+        <div id="gameOverOverlay" class="overlay">
+          <div class="panel">
+            <h2>GAME OVER</h2>
+            <p>
+              SCORE <b id="finalScore">0</b> · LINES <b id="finalLines">0</b>
+            </p>
+
+            <div class="row">
+              <input id="nameInput" maxlength="14" placeholder="NAME (for WORLD RANK)" />
+            </div>
+            <div class="row">
+              <button id="submitScoreBtn">SUBMIT</button>
+              <button id="retryBtn" class="primary">RETRY</button>
+            </div>
+
+            <div class="rankBox">
+              <div class="rankTitle">WORLD TOP 20</div>
+              <div id="rankList"></div>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="touchBar">
         <div class="touchRow five">
+          <!-- ✅ 버튼 순서: 좌, 아래, 드롭, 우, 회전 -->
           <button class="tbtn" data-act="left">←</button>
           <button class="tbtn" data-act="down">↓</button>
           <button class="tbtn accent" data-act="drop">DROP</button>
@@ -302,11 +408,14 @@
     pendingTimeouts.clear();
   }
 
+  /* =========================
+     CANVAS
+  ========================= */
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
 
-  const overlayEl = document.getElementById("gameOverOverlay");
-  const retryBtn = document.getElementById("retryBtn");
+  const nextCanvas = document.getElementById("next");
+  const nctx = nextCanvas.getContext("2d");
 
   /* =========================
      GAME
@@ -343,19 +452,30 @@
     combo: document.getElementById("combo"),
   };
 
+  const overlay = document.getElementById("gameOverOverlay");
+  const finalScoreEl = document.getElementById("finalScore");
+  const finalLinesEl = document.getElementById("finalLines");
+  const retryBtn = document.getElementById("retryBtn");
+  const submitScoreBtn = document.getElementById("submitScoreBtn");
+  const nameInput = document.getElementById("nameInput");
+  const rankList = document.getElementById("rankList");
+
   function rnd(n){ return Math.floor(Math.random()*n); }
   function clone(m){ return m.map(r=>r.slice()); }
 
-  function spawnPiece(){
-    const shape = clone(SHAPES[rnd(SHAPES.length)]);
+  // bag-less simple random, but keep a NEXT piece buffered
+  function spawnPiece(shapeOverride=null){
+    const shape = shapeOverride ? clone(shapeOverride) : clone(SHAPES[rnd(SHAPES.length)]);
     const x = Math.floor((COLS - shape[0].length)/2);
     const y = 0;
     return { shape, x, y };
   }
 
-  let piece = spawnPiece();
+  let nextShape = clone(SHAPES[rnd(SHAPES.length)]);
+  let piece = spawnPiece(nextShape);
+  nextShape = clone(SHAPES[rnd(SHAPES.length)]);
 
-  // 라인 플래시(색 변하고 삭제)
+  // line flash
   let flashRows = [];
   let flashUntil = 0;
 
@@ -364,9 +484,7 @@
     ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1);
   }
 
-  function draw(){
-    ctx.clearRect(0,0,canvas.width, canvas.height);
-
+  function drawGrid(){
     ctx.globalAlpha = 0.15;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
@@ -377,13 +495,51 @@
       ctx.beginPath(); ctx.moveTo(0, y*SIZE); ctx.lineTo(canvas.width, y*SIZE); ctx.stroke();
     }
     ctx.globalAlpha = 1;
+  }
 
+  function drawNext(){
+    nctx.clearRect(0,0,nextCanvas.width,nextCanvas.height);
+
+    // subtle grid
+    nctx.globalAlpha = 0.20;
+    nctx.strokeStyle = "#ffffff";
+    for(let i=0;i<=4;i++){
+      nctx.beginPath(); nctx.moveTo(i*18,0); nctx.lineTo(i*18,72); nctx.stroke();
+      nctx.beginPath(); nctx.moveTo(0,i*18); nctx.lineTo(72,i*18); nctx.stroke();
+    }
+    nctx.globalAlpha = 1;
+
+    const shape = nextShape;
+    const cell = 16;
+    const pad = 2;
+
+    // center in 4x4
+    const w = shape[0].length;
+    const h = shape.length;
+    const ox = Math.floor((4 - w)/2);
+    const oy = Math.floor((4 - h)/2);
+
+    for(let y=0;y<h;y++){
+      for(let x=0;x<w;x++){
+        if(!shape[y][x]) continue;
+        nctx.fillStyle = "rgba(140,200,255,.30)";
+        nctx.fillRect((ox+x)*18+pad, (oy+y)*18+pad, cell, cell);
+      }
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    drawGrid();
+
+    // board
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
         if(board[y][x]) drawCell(x,y,"rgba(255,255,255,.18)");
       }
     }
 
+    // flash rows
     if(performance.now() < flashUntil){
       for(const ry of flashRows){
         for(let x=0;x<COLS;x++){
@@ -392,6 +548,7 @@
       }
     }
 
+    // piece
     for(let dy=0;dy<piece.shape.length;dy++){
       for(let dx=0;dx<piece.shape[dy].length;dx++){
         if(piece.shape[dy][dx]){
@@ -453,304 +610,6 @@
   function moveLeft(){ if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--; }
   function moveRight(){ if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++; }
 
-  /* =========================
-     SOUND
-     - "One More Time"에서 영감받은 느낌(하우스/필터 스탭/펌핑) 스타일이지만,
-       특정 멜로디/리프/화성 진행을 그대로 복제하지 않는 오리지널 루프.
-  ========================= */
-  let audioCtx = null;
-  let soundOn = false;
-  let musicGain = null;
-  let sfxGain = null;
-
-  let musicTimer = null;
-  let nextNoteTime = 0;
-  let stepIndex = 0;
-
-  let pump = 0;
-  let bgBlocked = false;
-
-  const BPM = 124;
-  const secondsPerBeat = 60 / BPM;
-  const STEP = 0.25;                 // 16th
-  const stepSec = secondsPerBeat * STEP;
-  const LOOKAHEAD_MS = 25;
-  const SCHEDULE_AHEAD_SEC = 0.16;
-
-  function ensureAudio(){
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if(audioCtx.state === "suspended") audioCtx.resume();
-
-    if(!musicGain){
-      musicGain = audioCtx.createGain();
-      musicGain.gain.value = 0.20;  // 음악 기본
-      musicGain.connect(audioCtx.destination);
-    }
-    if(!sfxGain){
-      sfxGain = audioCtx.createGain();
-      sfxGain.gain.value = 0.18;    // SFX 더 작게
-      sfxGain.connect(audioCtx.destination);
-    }
-  }
-
-  async function hardStopAudio(){
-    bgBlocked = true;
-    stopMusic();
-    clearPendingTimeouts();
-    if(audioCtx){ try{ await audioCtx.suspend(); }catch(e){} }
-  }
-  async function hardResumeAudio(){
-    bgBlocked = false;
-    if(soundOn){
-      ensureAudio();
-      startMusic();
-    }
-  }
-  document.addEventListener("visibilitychange", () => {
-    if(document.hidden) hardStopAudio();
-    else hardResumeAudio();
-  });
-  window.addEventListener("pagehide", () => hardStopAudio());
-  window.addEventListener("blur", () => hardStopAudio());
-  window.addEventListener("pageshow", () => hardResumeAudio());
-  window.addEventListener("focus", () => hardResumeAudio());
-
-  function oscAt(time, freq, dur, type, vol, outGain, filterHz=null){
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, time);
-
-    g.gain.setValueAtTime(0.0001, time);
-    g.gain.linearRampToValueAtTime(vol, time + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-
-    if(filterHz){
-      const f = audioCtx.createBiquadFilter();
-      f.type = "lowpass";
-      f.frequency.setValueAtTime(filterHz, time);
-      f.Q.setValueAtTime(0.8, time);
-      o.connect(f).connect(g).connect(outGain);
-    }else{
-      o.connect(g).connect(outGain);
-    }
-
-    o.start(time);
-    o.stop(time + dur + 0.02);
-  }
-
-  function noiseAt(time, dur, vol, outGain){
-    const len = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
-    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-    const data = buf.getChannelData(0);
-    for(let i=0;i<len;i++) data[i] = (Math.random()*2-1) * (1 - i/len);
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf;
-
-    const hp = audioCtx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.setValueAtTime(4500, time);
-
-    const g = audioCtx.createGain();
-    g.gain.setValueAtTime(vol, time);
-    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-
-    src.connect(hp).connect(g).connect(outGain);
-    src.start(time);
-    src.stop(time + dur + 0.01);
-  }
-
-  function applyPump(){
-    pump *= 0.90;
-    const base = 0.20;
-    const target = base * (1 - 0.55 * pump);
-    if(musicGain) musicGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
-  }
-
-  // --- SFX (작게) ---
-  function sfxBeep(freq, dur=0.05, type="square", vol=0.028){
-    if(!soundOn) return;
-    if(bgBlocked || document.hidden) return;
-    ensureAudio();
-    oscAt(audioCtx.currentTime + 0.001, freq, dur, type, vol, sfxGain);
-  }
-  function sfxNoise(dur=0.02, vol=0.016){
-    if(!soundOn) return;
-    if(bgBlocked || document.hidden) return;
-    ensureAudio();
-    noiseAt(audioCtx.currentTime + 0.001, dur, vol, sfxGain);
-  }
-  function sfxTap(){ sfxBeep(520, 0.035, "square", 0.020); }
-  function sfxRotate(){ sfxBeep(760, 0.045, "square", 0.022); }
-  function sfxDrop(){ sfxBeep(220, 0.060, "sawtooth", 0.024); }
-  function sfxLock(){ sfxBeep(170, 0.045, "triangle", 0.018); }
-  function sfxLineClear(n){
-    const base = 520 + n*120;
-    sfxBeep(base, 0.070, "square", 0.026);
-    later(()=>sfxBeep(base*1.26, 0.065, "square", 0.024), 70);
-    later(()=>sfxNoise(0.03, 0.016), 40);
-  }
-  function sfxGameOver(){
-    // "아쉬운" 하강 톤 + 짧은 노이즈
-    sfxBeep(392, 0.12, "triangle", 0.022);
-    later(()=>sfxBeep(311, 0.14, "triangle", 0.020), 90);
-    later(()=>sfxBeep(247, 0.18, "triangle", 0.018), 170);
-    later(()=>sfxNoise(0.05, 0.012), 120);
-  }
-
-  // --- BACKGROUND MUSIC (House / filter-stab / pumping) ---
-  // 4-on-the-floor 킥 + 오프비트 스탭(코드 스탭) + 하이햇 + 베이스
-  function kickAt(time){
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = "sine";
-    o.frequency.setValueAtTime(140, time);
-    o.frequency.exponentialRampToValueAtTime(52, time + 0.12);
-
-    g.gain.setValueAtTime(0.0001, time);
-    g.gain.linearRampToValueAtTime(0.65, time + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
-
-    o.connect(g).connect(musicGain);
-    o.start(time);
-    o.stop(time + 0.26);
-
-    pump = 1.0;
-  }
-
-  function hatAt(time, open=false){
-    noiseAt(time, open ? 0.06 : 0.02, open ? 0.05 : 0.035, musicGain);
-  }
-
-  function clapAt(time){
-    noiseAt(time, 0.07, 0.06, musicGain);
-    oscAt(time, 220, 0.06, "triangle", 0.03, musicGain, 1800);
-  }
-
-  function bassAt(time, midi){
-    const f = 440 * Math.pow(2, (midi - 69)/12);
-    // 톱니 + 약간 필터
-    oscAt(time, f, 0.12, "sawtooth", 0.075, musicGain, 520);
-  }
-
-  function stabChordAt(time, midiNotes, brightness=1400){
-    // 여러 오실레이터로 짧은 스탭(“필터 스탭” 느낌)
-    const t = time;
-    for(const m of midiNotes){
-      const f = 440 * Math.pow(2, (m - 69)/12);
-      oscAt(t, f, 0.10, "square", 0.030, musicGain, brightness);
-      oscAt(t + 0.004, f*2, 0.07, "square", 0.010, musicGain, brightness + 800);
-    }
-  }
-
-  // 오리지널 진행(느낌만 하우스): 4마디 루프
-  // (예: F#m 느낌을 직접 복제하지 않기 위해 다른 중심/보이싱으로 구성)
-  const prog = [
-    { bass: 45, chord:[57, 61, 64] }, // A3 C#4 E4 (A)
-    { bass: 43, chord:[55, 59, 62] }, // G3 B3 D4 (G)
-    { bass: 40, chord:[52, 55, 59] }, // E3 G3 B3 (Em)
-    { bass: 42, chord:[54, 57, 61] }, // F#3 A3 C#4 (F#m-ish)
-  ];
-
-  function scheduleStep(i, time){
-    if(!soundOn) return;
-    if(bgBlocked || document.hidden) return;
-
-    const s = i % 16;                     // 16th
-    const beat = Math.floor(i / 4);       // quarter count
-    const bar = Math.floor(i / 16);       // 1 bar = 16 steps
-    const barPos = bar % 4;               // 4-bar loop
-    const p = prog[barPos];
-
-    // 킥: 매 4스텝(쿼터)마다
-    if(s % 4 === 0) kickAt(time);
-
-    // 클랩: 2,4박 (스텝 4, 12)
-    if(s === 4 || s === 12) clapAt(time);
-
-    // 하이햇: 8th(홀수) + 마디 끝 오픈
-    if(s % 2 === 1) hatAt(time, false);
-    if(s === 15) hatAt(time, true);
-
-    // 베이스: 쿼터마다 (킥 뒤 살짝)
-    if(s % 4 === 0){
-      bassAt(time + 0.012, p.bass); // 저역
-      // 옥타브 더해 펀치
-      bassAt(time + 0.012, p.bass + 12);
-    }
-
-    // 코드 스탭: 오프비트(스텝 2,6,10,14) + 밝기 변화(필터 스윕 느낌)
-    if([2,6,10,14].includes(s)){
-      const bright = (s === 14) ? 2300 : 1700;
-      stabChordAt(time + 0.003, p.chord, bright);
-    }
-  }
-
-  function scheduler(){
-    if(!soundOn || !audioCtx) return;
-    if(bgBlocked || document.hidden) return;
-    if(audioCtx.state === "suspended") audioCtx.resume();
-
-    applyPump();
-
-    while(nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_SEC){
-      scheduleStep(stepIndex, nextNoteTime);
-      nextNoteTime += stepSec;
-      stepIndex++;
-    }
-  }
-
-  function startMusic(){
-    ensureAudio();
-    stopMusic();
-    stepIndex = 0;
-    nextNoteTime = audioCtx.currentTime + 0.05;
-    pump = 0;
-    musicTimer = setInterval(scheduler, LOOKAHEAD_MS);
-  }
-  function stopMusic(){
-    if(musicTimer){
-      clearInterval(musicTimer);
-      musicTimer = null;
-    }
-  }
-
-  function toggleSound(){
-    soundOn = !soundOn;
-    const btn = document.getElementById("soundBtn");
-    btn.textContent = soundOn ? "SOUND ON" : "SOUND OFF";
-    if(soundOn){
-      ensureAudio();
-      sfxBeep(880, 0.05, "square", 0.020);
-      startMusic();
-    }else{
-      stopMusic();
-      clearPendingTimeouts();
-    }
-  }
-  document.getElementById("soundBtn").addEventListener("click", (e)=>{
-    e.preventDefault();
-    toggleSound();
-  });
-
-  /* =========================
-     GAME OVER UI
-  ========================= */
-  function setGameOver(){
-    if(state.gameOver) return;
-    state.gameOver = true;
-    overlayEl.classList.add("show");
-    overlayEl.setAttribute("aria-hidden", "false");
-    sfxGameOver();
-  }
-  function clearGameOverUI(){
-    overlayEl.classList.remove("show");
-    overlayEl.setAttribute("aria-hidden", "true");
-  }
-
-  /* =========================
-     LINE CLEAR / DROP
-  ========================= */
   function clearLines(){
     const full = [];
     for(let y=ROWS-1;y>=0;y--){
@@ -786,41 +645,335 @@
     updateUI();
   }
 
+  function takeNextPiece(){
+    piece = spawnPiece(nextShape);
+    nextShape = clone(SHAPES[rnd(SHAPES.length)]);
+    drawNext();
+    if(collide(piece.x, piece.y, piece.shape)) setGameOver();
+  }
+
   function softDrop(){
     if(state.gameOver) return;
-
     if(!collide(piece.x, piece.y+1, piece.shape)){
       piece.y++;
     } else {
       merge();
       if(state.gameOver) return;
-
       sfxLock();
       clearLines();
-
-      piece = spawnPiece();
-      if(collide(piece.x, piece.y, piece.shape)) setGameOver();
+      takeNextPiece();
     }
   }
 
   function hardDrop(){
     if(state.gameOver) return;
-
     while(!collide(piece.x, piece.y+1, piece.shape)){
       piece.y++;
     }
     merge();
     if(state.gameOver) return;
-
+    sfxDrop();
     sfxLock();
     clearLines();
-
-    piece = spawnPiece();
-    if(collide(piece.x, piece.y, piece.shape)) setGameOver();
+    takeNextPiece();
   }
 
   /* =========================
-     INPUT (pointerdown 통일)
+     SOUND: MUSIC / SFX split + gameover music switch
+     - “One More Time vibe” = 프렌치하우스/디스코 하우스 느낌의 자체 루프(멜로디 복제 없음)
+  ========================= */
+  let audioCtx = null;
+  let musicOn = false;
+  let sfxOn = true;
+
+  let musicGain = null;
+  let sfxGain = null;
+
+  let timer = null;
+  let nextNoteTime = 0;
+  let stepIndex = 0;
+
+  const BPM = 124;
+  const secondsPerBeat = 60 / BPM;
+  const STEP = 0.25;                 // 16th
+  const stepSec = secondsPerBeat * STEP;
+
+  const LOOKAHEAD_MS = 25;
+  const SCHEDULE_AHEAD_SEC = 0.14;
+
+  let pump = 0; // sidechain-ish
+  let bgBlocked = false;
+
+  function ensureAudio(){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+
+    if(!musicGain){
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0.18;
+      musicGain.connect(audioCtx.destination);
+    }
+    if(!sfxGain){
+      sfxGain = audioCtx.createGain();
+      sfxGain.gain.value = 0.20;
+      sfxGain.connect(audioCtx.destination);
+    }
+  }
+
+  async function hardStopAudio(){
+    bgBlocked = true;
+    stopMusic();
+    clearPendingTimeouts();
+    if(audioCtx){ try{ await audioCtx.suspend(); }catch(e){} }
+  }
+  async function hardResumeAudio(){
+    bgBlocked = false;
+    if(musicOn){ ensureAudio(); startMusic(); }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden) hardStopAudio();
+    else hardResumeAudio();
+  });
+  window.addEventListener("pagehide", () => hardStopAudio());
+  window.addEventListener("blur", () => hardStopAudio());
+  window.addEventListener("pageshow", () => hardResumeAudio());
+  window.addEventListener("focus", () => hardResumeAudio());
+
+  function oscAt(time, freq, dur, type, vol, outGain){
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, time);
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.linearRampToValueAtTime(vol, time + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    o.connect(g).connect(outGain);
+    o.start(time);
+    o.stop(time + dur + 0.02);
+  }
+
+  function noiseAt(time, dur, vol, outGain){
+    const len = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<len;i++) data[i] = (Math.random()*2-1) * (1 - i/len);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    src.connect(g).connect(outGain);
+    src.start(time);
+    src.stop(time + dur + 0.01);
+  }
+
+  function applyPump(){
+    pump *= 0.90;
+    const base = state.gameOver ? 0.14 : 0.18;
+    const target = base * (1 - 0.55 * pump);
+    if(musicGain) musicGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
+  }
+
+  // ----- SFX (toggleable) -----
+  function sfxBeep(freq, dur=0.05, type="square", vol=0.04){
+    if(!sfxOn) return;
+    if(bgBlocked || document.hidden) return;
+    ensureAudio();
+    oscAt(audioCtx.currentTime + 0.001, freq, dur, type, vol, sfxGain);
+  }
+  function sfxNoise(dur=0.02, vol=0.02){
+    if(!sfxOn) return;
+    if(bgBlocked || document.hidden) return;
+    ensureAudio();
+    noiseAt(audioCtx.currentTime + 0.001, dur, vol, sfxGain);
+  }
+  function sfxTap(){ sfxBeep(520, 0.035, "square", 0.018); }
+  function sfxRotate(){ sfxBeep(760, 0.045, "square", 0.020); }
+  function sfxDrop(){ sfxBeep(220, 0.060, "sawtooth", 0.022); }
+  function sfxLock(){ sfxBeep(170, 0.045, "triangle", 0.016); }
+  function sfxLineClear(n){
+    const base = 520 + n*120;
+    sfxBeep(base, 0.070, "square", 0.024);
+    later(()=>sfxBeep(base*1.26, 0.065, "square", 0.022), 70);
+    later(()=>sfxNoise(0.03, 0.018), 40);
+  }
+  function sfxGameOverAww(){
+    // “암울” 하강 톤 + 짧은 노이즈
+    sfxBeep(220, 0.12, "triangle", 0.030);
+    later(()=>sfxBeep(174, 0.14, "triangle", 0.028), 120);
+    later(()=>sfxBeep(130, 0.18, "triangle", 0.026), 260);
+    later(()=>sfxNoise(0.10, 0.020), 120);
+  }
+
+  // ----- MUSIC (two modes: normal / gameover) -----
+  // normal: french house/disco-house 느낌의 자체 루프 (멜로디 복제 없음)
+  // gameover: 저역 드론 + 느린 펄스(암울)
+  function kickAt(time){
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(140, time);
+    o.frequency.exponentialRampToValueAtTime(55, time + 0.10);
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.linearRampToValueAtTime(0.55, time + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
+    o.connect(g).connect(musicGain);
+    o.start(time); o.stop(time + 0.22);
+    pump = 1.0;
+  }
+  function clapAt(time){
+    noiseAt(time, 0.06, 0.10, musicGain);
+    oscAt(time, 220, 0.05, "triangle", 0.04, musicGain);
+  }
+  function hatAt(time, open=false){
+    noiseAt(time, open ? 0.06 : 0.02, open ? 0.06 : 0.045, musicGain);
+  }
+
+  function bassAt(time, semitone){
+    // 짧은 톱니 + 살짝 디튠
+    const base = 55;
+    const f = base * Math.pow(2, semitone/12);
+    oscAt(time, f, 0.10, "sawtooth", 0.06, musicGain);
+    oscAt(time, f*1.01, 0.08, "sawtooth", 0.03, musicGain);
+  }
+
+  function chordStabAt(time, semitone){
+    // 디스코 하우스 느낌의 짧은 스탭(3음)
+    const base = 220;
+    const root = base * Math.pow(2, semitone/12);
+    oscAt(time, root, 0.10, "square", 0.028, musicGain);
+    oscAt(time, root*Math.pow(2, 4/12), 0.10, "square", 0.020, musicGain);
+    oscAt(time, root*Math.pow(2, 7/12), 0.10, "square", 0.018, musicGain);
+  }
+
+  function glitterLeadAt(time, semitone){
+    const base = 440;
+    const f = base * Math.pow(2, semitone/12);
+    oscAt(time, f, 0.07, "triangle", 0.020, musicGain);
+    oscAt(time+0.01, f*2, 0.05, "triangle", 0.010, musicGain);
+  }
+
+  // gameover music parts
+  function doomDroneAt(time){
+    // 저역 드론 + 느린 펄스
+    const base = 55;
+    oscAt(time, base, 0.45, "sine", 0.05, musicGain);
+    oscAt(time, base*0.5, 0.45, "sine", 0.04, musicGain);
+    noiseAt(time+0.02, 0.10, 0.03, musicGain);
+  }
+
+  // patterns (자체 구성)
+  const bassProg = [0, 0, 3, 0, 5, 3, 0, 7];     // A 기반
+  const stabProg = [0, 0, 5, 3, 0, 7, 5, 3];
+  const leadProg = [12, 15, 14, 12, 10, 12, 14, 15];
+
+  function scheduleNormal(i, time){
+    const beat16 = i % 16;
+
+    if(beat16 % 4 === 0) kickAt(time);
+    if(beat16 === 4 || beat16 === 12) clapAt(time);
+    if(beat16 % 2 === 1) hatAt(time, false);
+    if(beat16 === 15) hatAt(time, true);
+
+    if(beat16 % 4 === 0){
+      const idx = (Math.floor(i/4)) % bassProg.length;
+      bassAt(time + 0.01, bassProg[idx]);
+    }
+
+    // chord stabs: offbeat(2,4,6,8...) 느낌
+    if(beat16 % 2 === 0 && beat16 !== 0){
+      const idx = (Math.floor(i/2)) % stabProg.length;
+      chordStabAt(time + 0.006, stabProg[idx] + 12);
+    }
+
+    // glitter lead: 마디 후반만 조금
+    if(beat16 >= 8 && (beat16 % 2 === 0)){
+      const idx = (Math.floor(i/2)) % leadProg.length;
+      glitterLeadAt(time + 0.01, leadProg[idx]);
+    }
+  }
+
+  function scheduleGameOver(i, time){
+    const beat16 = i % 16;
+    // 느린 펄스: 8th마다 드론
+    if(beat16 % 2 === 0){
+      doomDroneAt(time);
+    }
+    // 가끔 낮은 킥 비슷한 둔탁함
+    if(beat16 % 8 === 0){
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(90, time);
+      o.frequency.exponentialRampToValueAtTime(40, time + 0.18);
+      g.gain.setValueAtTime(0.0001, time);
+      g.gain.linearRampToValueAtTime(0.35, time + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
+      o.connect(g).connect(musicGain);
+      o.start(time); o.stop(time+0.32);
+      pump = 0.5;
+    }
+  }
+
+  function scheduler(){
+    if(!musicOn || !audioCtx) return;
+    if(bgBlocked || document.hidden) return;
+    if(audioCtx.state === "suspended") audioCtx.resume();
+
+    applyPump();
+
+    while(nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_SEC){
+      if(state.gameOver) scheduleGameOver(stepIndex, nextNoteTime);
+      else scheduleNormal(stepIndex, nextNoteTime);
+
+      nextNoteTime += stepSec;
+      stepIndex++;
+    }
+  }
+
+  function startMusic(){
+    ensureAudio();
+    stopMusic();
+    stepIndex = 0;
+    nextNoteTime = audioCtx.currentTime + 0.03;
+    pump = 0;
+    timer = setInterval(scheduler, LOOKAHEAD_MS);
+  }
+  function stopMusic(){
+    if(timer){ clearInterval(timer); timer = null; }
+  }
+
+  const musicBtn = document.getElementById("musicBtn");
+  const sfxBtn = document.getElementById("sfxBtn");
+
+  function refreshSoundUI(){
+    musicBtn.textContent = musicOn ? "MUSIC ON" : "MUSIC OFF";
+    sfxBtn.textContent = sfxOn ? "SFX ON" : "SFX OFF";
+  }
+
+  musicBtn.addEventListener("pointerdown", (e)=>{
+    e.preventDefault();
+    musicOn = !musicOn;
+    if(musicOn){
+      ensureAudio();
+      startMusic();
+    }else{
+      stopMusic();
+    }
+    refreshSoundUI();
+  }, {passive:false});
+
+  sfxBtn.addEventListener("pointerdown", (e)=>{
+    e.preventDefault();
+    sfxOn = !sfxOn;
+    sfxBeep(660, 0.04, "square", 0.018);
+    refreshSoundUI();
+  }, {passive:false});
+
+  refreshSoundUI();
+
+  /* =========================
+     INPUT
   ========================= */
   function act(a){
     if(state.gameOver) return;
@@ -829,7 +982,7 @@
     if(a==="left"){ moveLeft(); sfxTap(); }
     else if(a==="right"){ moveRight(); sfxTap(); }
     else if(a==="down"){ softDrop(); sfxTap(); }
-    else if(a==="drop"){ hardDrop(); sfxDrop(); }
+    else if(a==="drop"){ hardDrop(); }
     else if(a==="cw"){ doRotateCW(); sfxRotate(); }
   }
 
@@ -848,16 +1001,20 @@
     else if(e.key==="ArrowRight") act("right");
     else if(e.key==="ArrowDown") act("down");
     else if(e.key===" ") act("drop");
-    else if(e.key==="x" || e.key==="X") act("cw");
+    else if(e.key==="x" || e.key==="X" || e.key==="ArrowUp") act("cw");
     draw();
   });
 
   /* =========================
-     RESET / RETRY
+     RESET
   ========================= */
   function resetGame(){
     board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-    piece = spawnPiece();
+
+    nextShape = clone(SHAPES[rnd(SHAPES.length)]);
+    piece = spawnPiece(nextShape);
+    nextShape = clone(SHAPES[rnd(SHAPES.length)]);
+    drawNext();
 
     state.score = 0;
     state.level = 1;
@@ -871,28 +1028,45 @@
     flashUntil = 0;
 
     clearPendingTimeouts();
-    clearGameOverUI();
+    overlay.classList.remove("show");
 
     updateUI();
     draw();
+
+    // gameover였다면 음악 모드가 자동으로 정상으로 복귀됨(스케줄러가 state.gameOver를 봄)
   }
 
   document.getElementById("resetBtn").addEventListener("pointerdown", (e)=>{
     e.preventDefault();
     resetGame();
-    sfxBeep(330, 0.06, "triangle", 0.018);
+    sfxBeep(330, 0.06, "triangle", 0.016);
   }, {passive:false});
 
   retryBtn.addEventListener("pointerdown", (e)=>{
     e.preventDefault();
     resetGame();
-    sfxBeep(440, 0.06, "triangle", 0.018);
+    sfxBeep(520, 0.05, "square", 0.016);
   }, {passive:false});
 
-  overlayEl.addEventListener("pointerdown", (e)=>{
-    // 카드 밖 터치 시도 방지(그냥 무시)
-    e.preventDefault();
-  }, {passive:false});
+  /* =========================
+     GAME OVER
+  ========================= */
+  function setGameOver(){
+    if(state.gameOver) return;
+    state.gameOver = true;
+
+    finalScoreEl.textContent = String(state.score);
+    finalLinesEl.textContent = String(state.lines);
+
+    // 암울한 효과음
+    sfxGameOverAww();
+
+    // 오버레이
+    overlay.classList.add("show");
+
+    // 랭킹 로드
+    loadWorldRanking();
+  }
 
   /* =========================
      LOOP
@@ -909,13 +1083,149 @@
     requestAnimationFrame(loop);
   }
 
+  /* =========================
+     FIRESTORE WORLD RANKING
+     - 최소 동작 버전(치팅 방지 X)
+  ========================= */
+  // 1) Firebase 콘솔 > 프로젝트 설정 > 웹 앱 추가 > config 복사
+  // 2) 아래 firebaseConfig를 교체
+  // 3) Firestore Database 생성(테스트 모드로 시작 가능)
+  let db = null;
+
+  const firebaseConfig = {
+    // ✅ 여기에 본인 Firebase 웹 config 붙여넣기
+    // apiKey: "...",
+    // authDomain: "...",
+    // projectId: "...",
+    // storageBucket: "...",
+    // messagingSenderId: "...",
+    // appId: "..."
+  };
+
+  function initFirestoreIfReady(){
+    try{
+      if(!firebaseConfig || !firebaseConfig.projectId) return false;
+      if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function sanitizeName(s){
+    s = (s || "").trim();
+    if(!s) return "ANON";
+    // 너무 공격적이지 않게 최소 필터
+    s = s.replace(/[^\p{L}\p{N}_\- ]/gu, "").trim();
+    if(!s) return "ANON";
+    return s.slice(0,14);
+  }
+
+  function renderRanking(items){
+    rankList.innerHTML = "";
+    if(!items.length){
+      rankList.innerHTML = `<div class="rankItem"><span><small>NO DATA</small></span><span><small>-</small></span></div>`;
+      return;
+    }
+    items.forEach((it, idx)=>{
+      const name = it.name || "ANON";
+      const score = it.score ?? 0;
+      const lines = it.lines ?? 0;
+      const row = document.createElement("div");
+      row.className = "rankItem";
+      row.innerHTML = `
+        <span>${String(idx+1).padStart(2,"0")} <small>${escapeHtml(name)}</small></span>
+        <span>${score} <small>(${lines}L)</small></span>
+      `;
+      rankList.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (m)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
+  }
+
+  async function loadWorldRanking(){
+    // config 없으면 안내
+    if(!initFirestoreIfReady()){
+      renderRanking([]);
+      return;
+    }
+    try{
+      const snap = await db.collection("scores")
+        .orderBy("score","desc")
+        .orderBy("ts","asc")
+        .limit(20)
+        .get();
+
+      const items = [];
+      snap.forEach(doc => items.push(doc.data()));
+      renderRanking(items);
+    }catch(e){
+      renderRanking([]);
+    }
+  }
+
+  async function submitScore(){
+    if(!state.gameOver) return;
+    if(!initFirestoreIfReady()){
+      // config 미설정이면 그냥 무시
+      return;
+    }
+
+    // 간단한 클라 제한(스팸 완전 방지는 불가)
+    const now = Date.now();
+    const lastSubmit = Number(localStorage.getItem("cat_tetris_last_submit") || "0");
+    if(now - lastSubmit < 15000) return; // 15초 쿨다운
+    localStorage.setItem("cat_tetris_last_submit", String(now));
+
+    const name = sanitizeName(nameInput.value);
+    nameInput.value = name;
+    localStorage.setItem("cat_tetris_name", name);
+
+    const payload = {
+      name,
+      score: state.score,
+      lines: state.lines,
+      level: state.level,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      // 간단한 디바이스 힌트(선택)
+      ua: navigator.userAgent.slice(0,120)
+    };
+
+    try{
+      await db.collection("scores").add(payload);
+      await loadWorldRanking();
+      sfxBeep(880, 0.05, "square", 0.016);
+    }catch(e){
+      // ignore
+    }
+  }
+
+  submitScoreBtn.addEventListener("pointerdown", (e)=>{
+    e.preventDefault();
+    submitScore();
+  }, {passive:false});
+
+  // 이름 자동 로드
+  const savedName = localStorage.getItem("cat_tetris_name");
+  if(savedName) nameInput.value = savedName;
+
+  /* =========================
+     START
+  ========================= */
   updateUI();
+  drawNext();
   draw();
   requestAnimationFrame(loop);
 
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js");
   }
+
 })();
 </script>
 </body>
