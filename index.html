@@ -417,10 +417,6 @@ const stepSec = secondsPerBeat * STEP;
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_SEC = 0.15;
 
-let musicTimer = null;
-let nextNoteTime = 0;
-let stepIndex = 0;
-
 function kickAt(time){
 
   const osc = audioCtx.createOscillator();
