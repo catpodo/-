@@ -21,7 +21,6 @@
       --accent:#ff2d2d;
     }
 
-    /* ✅ 스크롤/바운스 방지 + PWA/Safari 주소창 변동 대응 */
     html,body{
       margin:0;
       width:100%;
@@ -46,7 +45,6 @@
       align-items:flex-start;
     }
 
-    /* ✅ 한 화면(100dvh) 안에 "헤더 + 게임" 강제 배치 */
     .wrap{
       width:min(520px, 96vw);
       height:100dvh;
@@ -66,6 +64,7 @@
       align-items:center;
       justify-content:space-between;
       margin:8px 2px 12px;
+      gap:10px;
     }
 
     .brand{
@@ -97,6 +96,7 @@
       user-select:none;
       -webkit-tap-highlight-color:transparent;
       flex:0 0 auto;
+      cursor:pointer;
     }
     .pill:active{ transform:translateY(1px); }
     .dot{
@@ -105,33 +105,29 @@
       box-shadow:0 0 0 3px rgba(255,45,45,.15);
     }
 
-    /* ✅ stage가 남은 공간을 모두 사용(버튼이 밀려 내려가지 않게) */
+    /* ✅ 4귀퉁이 라운드 제거 */
     .stage{
       flex:1 1 auto;
       min-height:0;
-      border-radius:0px;
+      border-radius:0;
       border:1px solid rgba(255,255,255,.10);
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       padding:14px;
       display:flex;
       flex-direction:column;
     }
-
-    /* ✅ 보드 영역은 stage 안에서 가능한 최대 */
     .boardWrap{
       position:relative;
       flex:1 1 auto;
       min-height:0;
-      border-radius:0px;
+      border-radius:0;
       overflow:hidden;
     }
-
-    /* ✅ 캔버스는 boardWrap을 꽉 채움 (버튼 유지) */
     canvas#game{
       width:100%;
       height:100%;
       display:block;
-      border-radius:0px;
+      border-radius:0;
       background:
         radial-gradient(900px 600px at 50% 30%, rgba(255,255,255,.06), transparent 60%),
         #0a0d16;
@@ -139,7 +135,6 @@
       -webkit-tap-highlight-color:transparent;
     }
 
-    /* ✅ HUD: 글자만(배경 완전 투명) + 작게 */
     .hudOverlay{
       position:absolute;
       top:14px;
@@ -160,10 +155,7 @@
       gap:10px;
       margin:8px 0;
     }
-    .k2{
-      color:rgba(255,255,255,.55);
-      font-size:11px;
-    }
+    .k2{ color:rgba(255,255,255,.55); font-size:11px; }
     .hudLine b{
       color:rgba(255,255,255,.92);
       font-size:14px;
@@ -172,7 +164,6 @@
       letter-spacing:.06em;
     }
 
-    /* Touch Controls */
     .touchBar{
       flex:0 0 auto;
       margin-top:12px;
@@ -216,7 +207,8 @@
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
-        <div class="pill"><span class="dot"></span>RESET</div>
+        <!-- ✅ RUN -> RESET 버튼 -->
+        <div id="resetBtn" class="pill"><span class="dot"></span>RESET</div>
         <div id="soundBtn" class="pill">SOUND OFF</div>
       </div>
     </div>
@@ -380,148 +372,38 @@
     ui.combo.textContent = state.combo;
   }
 
-  function clearLines(){
-    const full = [];
-    for(let y=ROWS-1;y>=0;y--){
-      if(board[y].every(v=>v===1)) full.push(y);
-    }
-    if(!full.length){
-      state.combo = 0;
-      updateUI();
-      return;
-    }
-
-    // ✅ 라인 색 한번 변하고 삭제
-    flashRows = full.slice();
-    flashUntil = performance.now() + 120;
-
-    // ✅ 라인 삭제 사운드(줄 수에 따라 피치 변화)
-    sfxLineClear(full.length);
-
-    setTimeout(() => {
-      full.sort((a,b)=>b-a).forEach(y=>{
-        board.splice(y,1);
-        board.unshift(Array(COLS).fill(0));
-      });
-    }, 120);
-
-    state.lines += full.length;
-    state.score += [0,100,300,500,800][full.length] * state.level;
-    state.combo += 1;
-
-    const newLevel = 1 + Math.floor(state.lines/10);
-    if(newLevel !== state.level){
-      state.level = newLevel;
-      state.dropMs = Math.max(120, 520 - (state.level-1)*38);
-    }
-
-    updateUI();
-  }
-
-  function softDrop(){
-    if(!collide(piece.x, piece.y+1, piece.shape)){
-      piece.y++;
-    } else {
-      merge();
-      sfxLock(); // 착지/고정 사운드
-      if(state.gameOver) return;
-      clearLines();
-      piece = spawnPiece();
-      if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
-    }
-  }
-
-  function hardDrop(){
-    while(!collide(piece.x, piece.y+1, piece.shape)){
-      piece.y++;
-    }
-    merge();
-    sfxLock();
-    if(state.gameOver) return;
-    clearLines();
-    piece = spawnPiece();
-    if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
-  }
-
-  function rotateCW(shape){
-    const h = shape.length, w = shape[0].length;
-    const out = Array.from({length:w}, ()=>Array(h).fill(0));
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        out[x][h-1-y] = shape[y][x];
-      }
-    }
-    return out;
-  }
-
-  function doRotateCW(){
-    const next = rotateCW(piece.shape);
-    if(!collide(piece.x, piece.y, next)){
-      piece.shape = next;
-      return;
-    }
-    if(!collide(piece.x-1, piece.y, next)){ piece.x--; piece.shape = next; return; }
-    if(!collide(piece.x+1, piece.y, next)){ piece.x++; piece.shape = next; return; }
-  }
-
-  function moveLeft(){
-    if(!collide(piece.x-1, piece.y, piece.shape)) piece.x--;
-  }
-  function moveRight(){
-    if(!collide(piece.x+1, piece.y, piece.shape)) piece.x++;
-  }
-  
-  function resetGame(){
-  board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  piece = spawnPiece();
-
-  state.score = 0;
-  state.level = 1;
-  state.lines = 0;
-  state.combo = 0;
-  state.dropMs = 520;
-  state.paused = false;
-  state.gameOver = false;
-
-  flashRows = [];
-  flashUntil = 0;
-
-  updateUI();
-  draw();
-}
-
-document.getElementById("resetBtn").addEventListener("click", (e)=>{
-  e.preventDefault();
-  resetGame();
-});
-
-    /* =========================
-     FRENCH HOUSE-ish SOUND (Daft Punk vibe)
-     - iOS/PWA 안정형 scheduler
-     - SFX quieter
+  /* =========================
+     iOS BACKGROUND SOUND FIX
+     - suspend AudioContext + clear timers
   ========================= */
   let audioCtx = null;
   let soundOn = false;
 
-  let musicGain = null;   // 음악 마스터
-  let sfxGain = null;     // SFX 마스터
+  // music/sfx masters
+  let musicGain = null;
+  let sfxGain = null;
 
-  // scheduler
+  // scheduler timer
   let musicTimer = null;
   let nextNoteTime = 0;
-
-  const BPM = 124;                   // 프렌치 하우스 템포
-  const secondsPerBeat = 60 / BPM;
-  const STEP = 0.25;                 // 16th note
-  const stepSec = secondsPerBeat * STEP;
-
-  const LOOKAHEAD_MS = 25;
-  const SCHEDULE_AHEAD_SEC = 0.14;
-
   let stepIndex = 0;
 
-  // sidechain/pump envelope (음악에만 적용)
-  let pump = 0; // 0..1
+  // background block + timeout tracking
+  let bgBlocked = false;
+  let pendingTimeouts = new Set();
+
+  function later(fn, ms){
+    const id = setTimeout(() => {
+      pendingTimeouts.delete(id);
+      fn();
+    }, ms);
+    pendingTimeouts.add(id);
+    return id;
+  }
+  function clearPendingTimeouts(){
+    for(const id of pendingTimeouts) clearTimeout(id);
+    pendingTimeouts.clear();
+  }
 
   function ensureAudio(){
     if(!audioCtx){
@@ -531,15 +413,55 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
 
     if(!musicGain){
       musicGain = audioCtx.createGain();
-      musicGain.gain.value = 0.18;       // ✅ 음악 마스터 (필요시 0.22까지)
+      musicGain.gain.value = 0.18;      // 음악 마스터
       musicGain.connect(audioCtx.destination);
     }
     if(!sfxGain){
       sfxGain = audioCtx.createGain();
-      sfxGain.gain.value = 0.35;         // ✅ SFX 마스터: 크게 줄임 (0.25~0.45 추천)
+      sfxGain.gain.value = 0.22;        // ✅ 버튼/효과음 더 작게
       sfxGain.connect(audioCtx.destination);
     }
   }
+
+  async function hardStopAudio(){
+    bgBlocked = true;
+    stopMusic();
+    clearPendingTimeouts();
+    if(audioCtx){
+      try { await audioCtx.suspend(); } catch(e){}
+    }
+  }
+
+  async function hardResumeAudio(){
+    bgBlocked = false;
+    if(soundOn){
+      ensureAudio();
+      startMusic();
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden) hardStopAudio();
+    else hardResumeAudio();
+  });
+  window.addEventListener("pagehide", () => hardStopAudio());
+  window.addEventListener("blur", () => hardStopAudio());
+  window.addEventListener("pageshow", () => hardResumeAudio());
+  window.addEventListener("focus", () => hardResumeAudio());
+
+  /* =========================
+     SOUND (French house-ish)
+     - "Daft Punk vibe" = house + pump + synth (original pattern)
+  ========================= */
+  const BPM = 124;
+  const secondsPerBeat = 60 / BPM;
+  const STEP = 0.25;               // 16th
+  const stepSec = secondsPerBeat * STEP;
+
+  const LOOKAHEAD_MS = 25;
+  const SCHEDULE_AHEAD_SEC = 0.14;
+
+  let pump = 0;
 
   function oscAt(time, freq, dur, type, vol, outGain){
     const o = audioCtx.createOscillator();
@@ -570,53 +492,48 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
     g.gain.setValueAtTime(vol, time);
     g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
 
-    // 약간의 하이패스 느낌(간단 구현: 노이즈를 짧게 + 낮은 vol)
     src.connect(g).connect(outGain);
     src.start(time);
     src.stop(time + dur + 0.01);
   }
 
-  // ---- sidechain-ish pump (kick 때마다 펌핑) ----
   function applyPump(){
-    // kick 직후 pump=1, 이후 서서히 0으로 감쇠
     pump *= 0.90;
-    // pump가 클수록 음악이 더 줄어드는 느낌
-    const target = 0.18 * (1 - 0.55 * pump); // 기본 * (1 - 0.55*pump)
+    const target = 0.18 * (1 - 0.55 * pump);
     if(musicGain){
       musicGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02);
     }
   }
 
-  // ===== SFX (조용하게) =====
-  function sfxBeep(freq, dur=0.05, type="square", vol=0.05){
+  // SFX (quiet) + background guard
+  function sfxBeep(freq, dur=0.05, type="square", vol=0.04){
     if(!soundOn) return;
+    if(bgBlocked || document.hidden) return;
     ensureAudio();
     const t = audioCtx.currentTime + 0.001;
     oscAt(t, freq, dur, type, vol, sfxGain);
   }
-  function sfxNoise(dur=0.02, vol=0.03){
+  function sfxNoise(dur=0.02, vol=0.02){
     if(!soundOn) return;
+    if(bgBlocked || document.hidden) return;
     ensureAudio();
     const t = audioCtx.currentTime + 0.001;
     noiseAt(t, dur, vol, sfxGain);
   }
 
-  function sfxTap(){ sfxBeep(520, 0.035, "square", 0.040); }
-  function sfxRotate(){ sfxBeep(760, 0.045, "square", 0.045); }
-  function sfxDrop(){ sfxBeep(220, 0.060, "sawtooth", 0.055); }
-  function sfxLock(){ sfxBeep(170, 0.045, "triangle", 0.040); }
+  function sfxTap(){ sfxBeep(520, 0.035, "square", 0.026); }
+  function sfxRotate(){ sfxBeep(760, 0.045, "square", 0.030); }
+  function sfxDrop(){ sfxBeep(220, 0.060, "sawtooth", 0.032); }
+  function sfxLock(){ sfxBeep(170, 0.045, "triangle", 0.024); }
   function sfxLineClear(n){
     const base = 520 + n*120;
-    sfxBeep(base, 0.070, "square", 0.060);
-    setTimeout(()=>sfxBeep(base*1.26, 0.065, "square", 0.055), 70);
-    setTimeout(()=>sfxNoise(0.03, 0.03), 40);
+    sfxBeep(base, 0.070, "square", 0.034);
+    later(()=>sfxBeep(base*1.26, 0.065, "square", 0.030), 70);
+    later(()=>sfxNoise(0.03, 0.02), 40);
   }
 
-  // ===== MUSIC (French house-ish) =====
-  // 킥(4-on-the-floor) + 스네어/클랩(2,4) + 하이햇(8th/16th)
-  // + 짧은 리드/스탭 (필터 느낌)
+  // Music events (original house loop)
   function kickAt(time){
-    // 빠른 피치 다운 킥(808-ish)
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.type = "sine";
@@ -632,12 +549,10 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
     o.start(time);
     o.stop(time + 0.22);
 
-    // pump 트리거
     pump = 1.0;
   }
 
   function clapAt(time){
-    // 노이즈 + 짧은 톤 = 클랩 느낌
     noiseAt(time, 0.06, 0.10, musicGain);
     oscAt(time, 220, 0.05, "triangle", 0.04, musicGain);
   }
@@ -647,54 +562,44 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
   }
 
   function bassAt(time, semitone){
-    // 톱니 베이스 + 짧게
     const base = 55; // A1
     const f = base * Math.pow(2, semitone/12);
     oscAt(time, f, 0.10, "sawtooth", 0.07, musicGain);
   }
 
   function leadAt(time, semitone){
-    // “필터 스탭” 같은 짧은 리드
     const base = 220; // A3
     const f = base * Math.pow(2, semitone/12);
     oscAt(time, f, 0.07, "square", 0.05, musicGain);
-    oscAt(time+0.01, f*2, 0.05, "square", 0.02, musicGain); // 위 옥타브 살짝
+    oscAt(time+0.01, f*2, 0.05, "square", 0.02, musicGain);
   }
 
-  // 진행(무작위 느낌 최소화, 반복되는 하우스 루프)
-  const bassProg = [0, 0, 3, 0, 5, 3, 0, 7]; // semitone steps from A
-  const leadNotes = [12, 15, 19, 17, 15, 14, 12, 10]; // 간단한 훅(유사 멜로디지만 특정곡 아님)
+  const bassProg = [0, 0, 3, 0, 5, 3, 0, 7];
+  const leadNotes = [12, 15, 19, 17, 15, 14, 12, 10];
 
   function scheduleStep(i, time){
-    const beat16 = i % 16;             // 0..15
-    const beat4 = i % 4;               // 0..3
-    const beat = (i * STEP) % 4;       // 0..4beat
+    if(!soundOn) return;
+    if(bgBlocked || document.hidden) return;
 
-    // 4-on-the-floor kick: 매 4스텝(1beat)마다
-    if(beat16 % 4 === 0){
-      kickAt(time);
-    }
+    const beat16 = i % 16;
 
-    // clap/snare: 2,4 박(beat=1,3) -> 16스텝 기준 4,12
-    if(beat16 === 4 || beat16 === 12){
-      clapAt(time);
-    }
+    // kick every beat
+    if(beat16 % 4 === 0) kickAt(time);
 
-    // hats: 8th 기본(2스텝마다), 가끔 16th
-    if(beat16 % 2 === 1){
-      hatAt(time, false);
-    }
-    if(beat16 === 15){
-      hatAt(time, true); // 마디 끝 오픈햇
-    }
+    // clap on 2 and 4
+    if(beat16 === 4 || beat16 === 12) clapAt(time);
 
-    // bass: 매 박마다 살짝
+    // hats
+    if(beat16 % 2 === 1) hatAt(time, false);
+    if(beat16 === 15) hatAt(time, true);
+
+    // bass
     if(beat16 % 4 === 0){
       const idx = (Math.floor(i/4)) % bassProg.length;
       bassAt(time + 0.01, bassProg[idx]);
     }
 
-    // lead: 8th에 훅
+    // lead
     if(beat16 % 2 === 0 && beat16 !== 0){
       const idx = (Math.floor(i/2)) % leadNotes.length;
       leadAt(time + 0.005, leadNotes[idx]);
@@ -703,9 +608,9 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
 
   function scheduler(){
     if(!soundOn || !audioCtx) return;
-    if(audioCtx.state === "suspended") audioCtx.resume();
+    if(bgBlocked || document.hidden) return;
 
-    // pump 업데이트
+    if(audioCtx.state === "suspended") audioCtx.resume();
     applyPump();
 
     while(nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_SEC){
@@ -738,39 +643,82 @@ document.getElementById("resetBtn").addEventListener("click", (e)=>{
 
     if(soundOn){
       ensureAudio();
-      // 시작 확인음도 너무 크지 않게
-      sfxBeep(880, 0.05, "square", 0.05);
+      sfxBeep(880, 0.05, "square", 0.03);
       startMusic();
     }else{
       stopMusic();
+      clearPendingTimeouts();
     }
   }
 
   document.getElementById("soundBtn").addEventListener("click", (e)=>{
     e.preventDefault();
     toggleSound();
-    function pauseMusicIfBackground(){
-  stopMusic();
-}
-
-function resumeMusicIfForeground(){
-  if(soundOn){
-    ensureAudio();
-    startMusic();
-  }
-}
-
-document.addEventListener("visibilitychange", () => {
-  if(document.hidden) pauseMusicIfBackground();
-  else resumeMusicIfForeground();
-});
-
-// iOS Safari에서 더 확실하게 잡기
-window.addEventListener("pagehide", pauseMusicIfBackground);
-window.addEventListener("blur", pauseMusicIfBackground);
-window.addEventListener("pageshow", () => resumeMusicIfForeground());
-window.addEventListener("focus", () => resumeMusicIfForeground());
   });
+
+  /* =========================
+     GAME LOGIC (line clear)
+  ========================= */
+  function clearLines(){
+    const full = [];
+    for(let y=ROWS-1;y>=0;y--){
+      if(board[y].every(v=>v===1)) full.push(y);
+    }
+    if(!full.length){
+      state.combo = 0;
+      updateUI();
+      return;
+    }
+
+    flashRows = full.slice();
+    flashUntil = performance.now() + 120;
+
+    sfxLineClear(full.length);
+
+    later(() => {
+      full.sort((a,b)=>b-a).forEach(y=>{
+        board.splice(y,1);
+        board.unshift(Array(COLS).fill(0));
+      });
+    }, 120);
+
+    state.lines += full.length;
+    state.score += [0,100,300,500,800][full.length] * state.level;
+    state.combo += 1;
+
+    const newLevel = 1 + Math.floor(state.lines/10);
+    if(newLevel !== state.level){
+      state.level = newLevel;
+      state.dropMs = Math.max(120, 520 - (state.level-1)*38);
+    }
+    updateUI();
+  }
+
+  function softDrop(){
+    if(!collide(piece.x, piece.y+1, piece.shape)){
+      piece.y++;
+    } else {
+      merge();
+      sfxLock();
+      if(state.gameOver) return;
+      clearLines();
+      piece = spawnPiece();
+      if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
+    }
+  }
+
+  function hardDrop(){
+    while(!collide(piece.x, piece.y+1, piece.shape)){
+      piece.y++;
+    }
+    merge();
+    sfxLock();
+    if(state.gameOver) return;
+    clearLines();
+    piece = spawnPiece();
+    if(collide(piece.x, piece.y, piece.shape)) state.gameOver = true;
+  }
+
   /* =========================
      INPUT
   ========================= */
@@ -798,6 +746,37 @@ window.addEventListener("focus", () => resumeMusicIfForeground());
     else if(e.key===" ") act("drop");
     else if(e.key==="x" || e.key==="X") act("cw");
     draw();
+  });
+
+  /* =========================
+     RESET
+  ========================= */
+  function resetGame(){
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    piece = spawnPiece();
+
+    state.score = 0;
+    state.level = 1;
+    state.lines = 0;
+    state.combo = 0;
+    state.dropMs = 520;
+    state.paused = false;
+    state.gameOver = false;
+
+    flashRows = [];
+    flashUntil = 0;
+
+    // 남아있는 예약음 제거
+    clearPendingTimeouts();
+
+    updateUI();
+    draw();
+  }
+
+  document.getElementById("resetBtn").addEventListener("click", (e)=>{
+    e.preventDefault();
+    resetGame();
+    sfxBeep(330, 0.06, "triangle", 0.03);
   });
 
   /* =========================
